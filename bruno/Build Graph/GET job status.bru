@@ -1,0 +1,15 @@
+meta {
+  name: GET job status
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{BASE_URL}}/api/v1/jobs/{{JOB_ID}}
+  body: none
+  auth: none
+}
+
+vars:pre-request {
+  JOB_ID: 5e327702-4721-4fb1-a44d-3bd7e7ed54ac
+}

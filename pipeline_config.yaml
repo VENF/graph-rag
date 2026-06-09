@@ -1,0 +1,44 @@
+# Configuración del pipeline de extracción del grafo de conocimiento
+# ==================================================================
+input:
+  patterns:
+    - "*.pdf.md"                           # Archivos fuente a procesar
+  dir: "./knowledge-base"                 # Directorio donde buscar
+
+output:
+  dir: "./knowledge-graph"                # Directorio donde se genera el grafo
+
+node_types:
+  documento:
+    dir: "00-documento"
+    label: "Documentos Fuente"
+    description: "Documentos fuente (Gaceta, Decreto, Ley)"
+    tags: "venezuela, gaceta-oficial, arancel-aduanas"
+  capitulo:
+    dir: "01-capitulos"
+    label: "Capítulos SA"
+    description: "Capítulo del Sistema Armonizado (SA)"
+    tags: "capitulo-sa, seccion-X"
+  articulo:
+    dir: "02-articulos"
+    label: "Artículos"
+    description: "Artículo legal del decreto/ley"
+    tags: "articulo, capitulo-legal-X"
+  codigo:
+    dir: "03-codigos"
+    label: "Códigos Arancelarios"
+    description: "Código SA de 10 dígitos (partida nacional)"
+    tags: "codigo-arancelario, capitulo-NN, tasa-cero"
+  regimen:
+    dir: "04-regimenes"
+    label: "Regímenes Legales"
+    description: "Régimen legal (permiso, licencia, restricción)"
+    tags: "regimen-legal"
+
+relationships:
+  - "es_parte_de"                          # Jerarquía documental (hijo → padre)
+  - "pertenece_a"                          # Pertenencia a capítulo/sección (código → capítulo)
+  - "regula"                               # Artículo regula código (artículo → código)
+  - "requiere"                             # Código requiere régimen (código → régimen)
+  - "refiere_a"                            # Referencia cruzada entre artículos
+  - "contiene"                             # Documento contiene sección/capítulo/artículo
