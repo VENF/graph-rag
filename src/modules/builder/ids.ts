@@ -13,9 +13,14 @@ export function codeId(codigo: string): string {
 }
 
 export function chapterId(numero: string, titulo: string): string {
-  return `cap-${numero.padStart(2, '0')}-${slugify(titulo)}`
+  const slug = slugify(titulo).slice(0, 60).replace(/-+$/, '')
+  return `cap-${numero.padStart(2, '0')}-${slug}`
 }
 
 export function regimenId(codigo: string): string {
   return `reg-${codigo.padStart(3, '0')}`
+}
+
+export function subpartidaId(code: string): string {
+  return `sub-${code.replace(/\./g, '')}`
 }

@@ -18,12 +18,31 @@ export interface RawCodigo {
   import_regime: string[]
   export_regime: string[]
   physical_unit: string | null
+  path: string[]
+}
+
+export interface RawSubpartida {
+  id: string
+  code: string
+  display: string
+  description: string
+  level: number
+  parent: string | null
+}
+
+export interface RawNota {
+  type: 'seccion' | 'complementaria' | 'subpartida' | 'capitulo'
+  section: string | null
+  chapter: string | null
+  text: string
+  scope: string | null
 }
 
 export interface RawRegimen {
   code: string
   description: string
   entity: string | null
+  is_comex_permit?: boolean
 }
 
 export interface RawDocumento {
@@ -42,6 +61,7 @@ export interface RawCapituloSA {
   title: string
   section: string | null
   section_title: string | null
+  notes: RawNota[]
 }
 
 export interface ParsedFile {
@@ -52,4 +72,6 @@ export interface ParsedFile {
   sa_chapters: RawCapituloSA[]
   codes: RawCodigo[]
   regimes: RawRegimen[]
+  subpartidas: RawSubpartida[]
+  notas: RawNota[]
 }

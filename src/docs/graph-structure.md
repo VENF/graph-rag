@@ -12,16 +12,22 @@ knowledge-graph/
 ├── _schema.md             # Schema y documentación técnica
 ├── 00-documento/          # Documentos fuente
 │   └── doc-gaceta-6804.md
-├── 01-capitulos/          # Capítulos del Sistema Armonizado
-│   └── cap-01-animales-vivos.md
-├── 02-articulos/          # Artículos legales
+├── 01-capitulos/          # Capítulos del Sistema Armonizado (98)
+│   ├── cap-01-animales-vivos.md
+│   └── ...
+├── 02-articulos/          # Artículos legales (46)
 │   ├── art-001.md
 │   └── ...
-├── 03-codigos/            # Códigos arancelarios (10 dígitos)
+├── 03-codigos/            # Códigos arancelarios 10 dígitos (11.765)
 │   ├── cod-0101210010.md
 │   └── ...
-└── 04-regimenes/          # Regímenes legales
-    ├── reg-001.md
+├── 04-regimenes/          # Regímenes legales (21)
+│   ├── reg-001.md
+│   └── ...
+└── 05-subpartidas/        # Subpartidas SA 4d/6d/8d (17.271)
+    ├── sub-0101.md        # Partida (4 dígitos)
+    ├── sub-010121.md      # Subpartida (6 dígitos)
+    ├── sub-01012100.md    # Subpartida (8 dígitos)
     └── ...
 ```
 
@@ -71,6 +77,29 @@ source: doc-gaceta-6804
 
 ---
 
+### `subpartida` → `05-subpartidas/`
+
+Nodo intermedio en la jerarquía del Sistema Armonizado: partida (4 dígitos), subpartida (6 dígitos), o subpartida regional (8 dígitos). Generado automáticamente a partir de cada código de 10 dígitos. Hasta 3 niveles por código, compartidos entre códigos del mismo grupo.
+
+**Frontmatter:**
+```yaml
+id: sub-01012100
+type: subpartida
+code: '01012100'
+display: 0101.21.00
+level: 8
+parent: sub-010121
+```
+
+**Relaciones salientes:**
+- `es_parte_de → subpartida` (nivel inferior → nivel superior)
+- `es_parte_de → capitulo` (nivel 4 dígitos → capítulo SA)
+
+**Relaciones entrantes:**
+- `es_parte_de ← codigo` (código 10d → subpartida 8d)
+
+---
+
 ### `codigo-arancelario` → `03-codigos/`
 
 Código SA de 10 dígitos (subpartida nacional). Corresponde a la hoja de la tabla arancelaria.
@@ -116,7 +145,7 @@ section_title: Animales vivos y productos del reino animal
 
 ### `regimen-legal` → `04-regimenes/`
 
-Cada régimen legal codificado (permiso, licencia, restricción, prohibición). Definidos en el Artículo 21 del Decreto.
+Cada régimen legal codificado (permiso, licencia, restricción, prohibición). Definidos en el Artículo 21 del Decreto. El régimen 9 (`is_comex_permit`) está marcado como permiso COMEX para validaciones cruzadas de exoneraciones.
 
 **Frontmatter:**
 ```yaml
@@ -137,18 +166,24 @@ entity: MAT (Ministerio de Agricultura y Tierras)
 
 ```
 DOCUMENTO ──contiene──▶ ARTÍCULO ──refiere_a──▶ ARTÍCULO
-DOCUMENTO ──contiene──▶ CAPÍTULO ◀──pertenece_a── CÓDIGO
-DOCUMENTO ──contiene──▶ CÓDIGO ──requiere──▶ RÉGIMEN
-ARTÍCULO  ──regula────▶ RÉGIMEN
-ARTÍCULO  ──regula────▶ CÓDIGO
+DOCUMENTO ──contiene──▶ CAPÍTULO ◀──es_parte_de── SUBPARTIDA(4d)
+DOCUMENTO ──contiene──▶ SUBPARTIDA(4d) ──es_parte_de──▶ SUBPARTIDA(6d) ──es_parte_de──▶ SUBPARTIDA(8d)
+DOCUMENTO ──contiene──▶ CÓDIGO ──es_parte_de──▶ SUBPARTIDA(8d)
+DOCUMENTO ──contiene──▶ CÓDIGO ──pertenece_a──▶ CAPÍTULO
+CÓDIGO ──requiere──▶ RÉGIMEN
+ARTÍCULO ──regula────▶ RÉGIMEN
+ARTÍCULO ──regula────▶ CÓDIGO
 ```
 
 ### Relaciones disponibles
 
 | Tipo | Desde | Hacia | Descripción |
 |------|-------|-------|-------------|
-| `contiene` | documento | articulo, capitulo, codigo | El documento contiene estos elementos |
-| `es_parte_de` | articulo, capitulo, codigo | documento | Relación inversa de `contiene` |
+| `contiene` | documento | articulo, capitulo, codigo, subpartida | El documento contiene estos elementos |
+| `es_parte_de` | articulo, capitulo, codigo, subpartida | documento | Pertenece al documento fuente |
+| `es_parte_de` | subpartida (nivel inferior) | subpartida (nivel superior) | Jerarquía de subpartidas (8d → 6d → 4d) |
+| `es_parte_de` | subpartida 4d | capitulo | Partida pertenece a capítulo SA |
+| `es_parte_de` | codigo | subpartida 8d | Código pertenece a subpartida padre |
 | `pertenece_a` | codigo | capitulo | El código pertenece a un capítulo SA |
 | `regula` | articulo | regimen, codigo | Base legal que regula ciertos regímenes/códigos |
 | `requiere` | codigo | regimen | Requisito legal aplicable al código |
@@ -212,9 +247,10 @@ El `_schema.md` se actualiza automáticamente para reflejar los tipos de nodo re
 
 ```
 documento:  doc-{gaceta|decreto}-{numero}
-capitulo:   cap-{numero}-{slug-titulo}
+capitulo:   cap-{numero}-{slug-titulo}          (slug truncado a 60 chars)
 articulo:   art-{numero-3-digitos}
 codigo:     cod-{codigo-sin-puntos}
+subpartida: sub-{codigo-sin-puntos}             (4d, 6d, u 8d)
 regimen:    reg-{codigo-3-digitos}
 ```
 

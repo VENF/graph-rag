@@ -5,6 +5,7 @@ import { readSourceFiles, parseFile } from './parser.js'
 import { extractAllNodes } from './extractor.js'
 import { buildRelations } from './relations.js'
 import { generateGraphFiles } from './generator.js'
+import { buildAuditReport } from './audit.js'
 
 interface CliOptions {
   config?: string
@@ -112,6 +113,9 @@ async function main(): Promise<void> {
 
   console.log('Generando archivos del grafo...')
   generateGraphFiles(nodos, relaciones, config)
+
+  console.log('\nAnalizando resultados...')
+  buildAuditReport(parsedFiles, nodos)
 }
 
 main().catch((err) => {

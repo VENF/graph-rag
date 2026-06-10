@@ -2,13 +2,15 @@ import type {
   Nodo,
   RawArticulo,
   RawCodigo,
+  RawSubpartida,
   RawRegimen,
   RawDocumento,
   RawCapituloSA,
+  RawNota,
   ParsedFile,
 } from './types.js'
 import { slugify } from './utils.js'
-import { documentId, articleId, codeId, chapterId, regimenId } from './ids.js'
+import { documentId, articleId, codeId, chapterId, regimenId, subpartidaId } from './ids.js'
 
 function buildNodo<T extends Record<string, unknown>>(
   id: string,
@@ -38,6 +40,8 @@ export function extractDocumentoNode(doc: RawDocumento): Nodo {
       decree: doc.decree,
       decree_date: doc.decree_date,
       issuer: doc.issuer,
+      source_document: doc.id,
+      history: [{ document: doc.id, date: doc.date, type: 'creación' }],
     },
     `# ${doc.title}\n\n**Nº:** ${doc.number} ${doc.gazette_type}\n**Fecha:** ${doc.date}\n**Decreto Nº:** ${doc.decree}\n**Emisor:** ${doc.issuer}`,
     ['venezuela', 'arancel-aduanas', 'gaceta-oficial', slugify(doc.gazette_type)],
@@ -46,7 +50,8 @@ export function extractDocumentoNode(doc: RawDocumento): Nodo {
 
 export function extractArticuloNodes(
   articulos: RawArticulo[],
-  docId: string | null
+  docId: string | null,
+  docDate: string | null = null,
 ): Nodo[] {
   return articulos.map((art) => {
     const id = articleId(art.number)
@@ -54,10 +59,11 @@ export function extractArticuloNodes(
     if (art.legal_chapter) {
       tags.push(`capitulo-${slugify(art.legal_chapter)}`)
     }
+    const historyEntry = docId ? [{ document: docId, date: docDate || '', type: 'creación' as const }] : []
     return buildNodo(
       id,
       'articulo',
-      { number: art.number, title: art.title, legal_chapter: art.legal_chapter, references: art.references, source: docId },
+      { number: art.number, title: art.title, legal_chapter: art.legal_chapter, references: art.references, source_document: docId, history: historyEntry },
       art.content,
       tags,
     )
@@ -66,17 +72,25 @@ export function extractArticuloNodes(
 
 export function extractCapituloNodes(
   capitulos: RawCapituloSA[],
-  docId: string | null
+  docId: string | null,
+  docDate: string | null = null,
 ): Nodo[] {
   return capitulos.map((cap) => {
     const id = chapterId(cap.number, cap.title)
     const seccionTag = cap.section ? `seccion-${slugify(cap.section)}` : null
+    const historyEntry = docId ? [{ document: docId, date: docDate || '', type: 'creación' as const }] : []
+    let content = `## CAPÍTULO ${cap.number}\n\n${cap.title}`
+    if (cap.section_title) {
+      content += `\n\n*Sección ${cap.section}: ${cap.section_title}*`
+    }
+    if (cap.notes.length > 0) {
+      content += `\n\n### Notas\n\n${cap.notes.map((n) => n.text).join('\n\n')}`
+    }
     return buildNodo(
       id,
       'capitulo',
-      { number: cap.number, title: cap.title, section: cap.section, section_title: cap.section_title, source: docId },
-      `## CAPÍTULO ${cap.number}\n\n${cap.title}` +
-        (cap.section_title ? `\n\n*Sección ${cap.section}: ${cap.section_title}*` : ''),
+      { number: cap.number, title: cap.title, section: cap.section, section_title: cap.section_title, notes: cap.notes.length > 0 ? cap.notes : undefined, source_document: docId, history: historyEntry },
+      content,
       ['capitulo-sa', ...(seccionTag ? [seccionTag] : [])],
     )
   })
@@ -84,14 +98,20 @@ export function extractCapituloNodes(
 
 export function extractCodigoNodes(
   codigos: RawCodigo[],
-  docId: string | null
+  docId: string | null,
+  docDate: string | null = null,
 ): Nodo[] {
-  return codigos.map((cod) => {
+  const total = codigos.length
+  return codigos.map((cod, idx) => {
+    if ((idx + 1) % 1000 === 0 || idx + 1 === total) {
+      console.log(`  Códigos procesados: ${idx + 1}/${total}`)
+    }
     const id = codeId(cod.code)
     const capNum = cod.code.slice(0, 2)
     const tags = ['codigo-arancelario', `capitulo-${capNum}`]
     if (cod.aec === 0) tags.push('tasa-cero')
     if (cod.ex_aec) tags.push('excepcion')
+    const historyEntry = docId ? [{ document: docId, date: docDate || '', type: 'creación' as const }] : []
 
     return buildNodo(
       id,
@@ -105,7 +125,8 @@ export function extractCodigoNodes(
         physical_unit: cod.physical_unit,
         import_regime: cod.import_regime,
         export_regime: cod.export_regime,
-        source: docId,
+        source_document: docId,
+        history: historyEntry,
       },
       `### ${cod.code}\n\n**Descripción:** ${cod.description}\n\n` +
         `**AEC:** ${cod.aec !== null ? cod.aec + '%' : '—'}\n` +
@@ -118,19 +139,63 @@ export function extractCodigoNodes(
   })
 }
 
+export function extractSubpartidaNodes(
+  subpartidas: RawSubpartida[],
+  docId: string | null,
+  docDate: string | null = null,
+): Nodo[] {
+  const seen = new Set<string>()
+  const nodos: Nodo[] = []
+  for (const sub of subpartidas) {
+    if (seen.has(sub.id)) continue
+    seen.add(sub.id)
+    const historyEntry = docId ? [{ document: docId, date: docDate || '', type: 'creación' as const }] : []
+    const tags = ['subpartida', `nivel-${sub.level}`]
+    if (sub.level === 4) tags.push('partida-sa')
+
+    const content = `### ${sub.display}\n\n**Nivel:** ${sub.level} dígitos` +
+      (sub.description ? `\n\n${sub.description}` : '')
+
+    nodos.push(buildNodo(
+      sub.id,
+      'subpartida',
+      {
+        code: sub.code,
+        display: sub.display,
+        level: sub.level,
+        parent: sub.parent,
+        source_document: docId,
+        history: historyEntry,
+      },
+      content,
+      tags,
+    ))
+  }
+  return nodos
+}
+
 export function extractRegimenNodes(
   regimenes: RawRegimen[],
-  docId: string | null
+  docId: string | null,
+  docDate: string | null = null,
 ): Nodo[] {
   return regimenes.map((reg) => {
     const id = regimenId(reg.code)
     const tags = ['regimen-legal']
     if (reg.entity) tags.push(slugify(reg.entity))
+    const historyEntry = docId ? [{ document: docId, date: docDate || '', type: 'creación' as const }] : []
 
     return buildNodo(
       id,
       'regimen-legal',
-      { code: reg.code, description: reg.description, entity: reg.entity, source: docId },
+      {
+        code: reg.code,
+        description: reg.description,
+        entity: reg.entity,
+        source_document: docId,
+        history: historyEntry,
+        is_comex_permit: reg.code === '9' ? true : undefined,
+      },
       `## Régimen Legal ${reg.code}\n\n${reg.description}` +
         (reg.entity ? `\n\n**Entidad:** ${reg.entity}` : ''),
       tags,
@@ -140,12 +205,14 @@ export function extractRegimenNodes(
 
 function extractFromFile(file: ParsedFile): Nodo[] {
   const docId = file.document?.id || null
+  const docDate = file.document?.date || null
   return [
     ...(file.document ? [extractDocumentoNode(file.document)] : []),
-    ...extractArticuloNodes(file.articles, docId),
-    ...extractCapituloNodes(file.sa_chapters, docId),
-    ...extractCodigoNodes(file.codes, docId),
-    ...extractRegimenNodes(file.regimes, docId),
+    ...extractArticuloNodes(file.articles, docId, docDate),
+    ...extractCapituloNodes(file.sa_chapters, docId, docDate),
+    ...extractSubpartidaNodes(file.subpartidas, docId, docDate),
+    ...extractCodigoNodes(file.codes, docId, docDate),
+    ...extractRegimenNodes(file.regimes, docId, docDate),
   ]
 }
 

@@ -3,9 +3,11 @@ import path from 'path'
 import type {
   RawArticulo,
   RawCodigo,
+  RawSubpartida,
   RawRegimen,
   RawDocumento,
   RawCapituloSA,
+  RawNota,
   ParsedFile,
 } from './types.js'
 
@@ -15,6 +17,144 @@ const ARTICULO_RE = /[Aa]rt[íi]culo/
 const SECCION_RE = /SECCI[OÓ]N/
 const CAPITULO_RE = /CAP[IÍ]TULO/
 const NUMERO_RE = /N[º°]/
+
+export interface LineIndex {
+  articleHeaders: Array<{ line: number; number: number }>
+  codeTables: Array<{ start: number; end: number }>
+  sectionsRegion?: { start: number; end: number }
+}
+
+export function buildLineIndex(lines: string[]): LineIndex {
+  const index: LineIndex = { articleHeaders: [], codeTables: [] }
+  const artHeaderRe = /\*\*Art[íi]culo\s+(\d+)[º°]?\.?\*\*/
+  const tableHeaderRe = /\|\s*Código/
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+
+    const artMatch = line.match(artHeaderRe)
+    if (artMatch) {
+      index.articleHeaders.push({ line: i, number: parseInt(artMatch[1], 10) })
+      continue
+    }
+
+    if (tableHeaderRe.test(line)) {
+      const start = i
+      i += 3
+      while (i < lines.length) {
+        const trimmed = lines[i].trim()
+        if (trimmed === '' || trimmed.startsWith('---')) { i++; continue }
+        if (!lines[i].startsWith('|')) break
+        i++
+      }
+      index.codeTables.push({ start, end: i - 1 })
+      continue
+    }
+
+    if (line.trim() === '## SECCIONES Y CAPÍTULOS') {
+      const start = i
+      let end = start + 1
+      while (end < lines.length) {
+        const nextLine = lines[end].trim()
+        if (nextLine.startsWith('## ')) break
+        if (nextLine.match(/^###\s+\*{0,2}ABREVIATURAS/)) break
+        end++
+      }
+      index.sectionsRegion = { start, end: end - 1 }
+    }
+  }
+
+  return index
+}
+
+const SECTION_HEADER_RE = /###\s*\*{0,2}SECCI[OÓ]N\s+(I{1,3}V?|IV|V?I{0,3})\*{0,2}(?:\s+\*{0,2}(.+)\*{0,2})?/
+const CHAPTER_ENTRY_RE = /^(?:[-–]\s*)?(\d{1,2})\.?\s+(.+)/
+
+export function extractSectionsAndChapters(lines: string[], start: number, end: number): RawCapituloSA[] {
+  const capitulos: RawCapituloSA[] = []
+  let currentSection: { number: string; title: string } | null = null
+
+  for (let i = start; i <= end; i++) {
+    const line = lines[i].trim()
+
+    const secMatch = line.match(SECTION_HEADER_RE)
+    if (secMatch) {
+      const sectionNum = secMatch[1].trim()
+      let sectionTitle = (secMatch[2] || '').trim()
+      if (!sectionTitle) {
+        for (let j = i + 1; j <= Math.min(i + 3, end); j++) {
+          const nextLine = (lines[j] || '').trim()
+          const headingMatch = nextLine.match(/^#{4}\s+\*{0,2}(.+)\*{0,2}\s*$/)
+          if (headingMatch) {
+            sectionTitle = headingMatch[1].trim()
+            break
+          }
+        }
+      }
+      currentSection = { number: sectionNum, title: sectionTitle || `Sección ${sectionNum}` }
+      continue
+    }
+
+    const capMatch = line.match(CHAPTER_ENTRY_RE)
+    if (capMatch && currentSection) {
+      const num = parseInt(capMatch[1], 10)
+      if (num >= 1 && num <= 99) {
+        const title = capMatch[2].replace(/\.$/, '').trim()
+        capitulos.push({
+          number: String(num).padStart(2, '0'),
+          title,
+          section: currentSection.number,
+          section_title: currentSection.title,
+          notes: [],
+        })
+      }
+    }
+  }
+
+  return capitulos
+}
+
+export function extractSectionNotes(lines: string[], index: LineIndex): RawNota[] {
+  if (!index.sectionsRegion) return []
+  const notas: RawNota[] = []
+  let currentSection: string | null = null
+
+  for (let i = index.sectionsRegion.start; i <= index.sectionsRegion.end; i++) {
+    const line = lines[i].trim()
+
+    const secMatch = line.match(SECTION_HEADER_RE)
+    if (secMatch) {
+      currentSection = secMatch[1].trim()
+      continue
+    }
+
+    if (line.match(/^Notas? de Secci[oó]n/)) {
+      const noteStart = i + 1
+      let noteEnd = noteStart
+      while (noteEnd <= index.sectionsRegion.end) {
+        const nl = lines[noteEnd].trim()
+        if (nl.match(SECTION_HEADER_RE) || nl === '') { noteEnd++; continue }
+        if (!nl.match(/^\d+\.\s/) && !nl.match(/^[-–]\s*\d+/) && !nl.startsWith('|')) break
+        noteEnd++
+      }
+      for (let j = noteStart; j < noteEnd; j++) {
+        const nl = lines[j].trim()
+        const textMatch = nl.match(/^(?:\d+\.\s+)?[-–]?\s*(.+)/)
+        if (textMatch) {
+          notas.push({
+            type: 'seccion',
+            section: currentSection,
+            chapter: null,
+            text: textMatch[1],
+            scope: null,
+          })
+        }
+      }
+    }
+  }
+
+  return notas
+}
 
 function parseSeccionHeader(line: string): { number: string; title: string } | null {
   const match = line.match(
@@ -54,7 +194,7 @@ function parseCapituloHeader(lines: string[], i: number): RawCapituloSA | null {
     if (tMatch) titulo = tMatch[1].trim()
   }
 
-  return { number: num, title: titulo || `Capítulo ${num}`, section: null, section_title: null }
+  return { number: num, title: titulo || `Capítulo ${num}`, section: null, section_title: null, notes: [] }
 }
 
 export function readSourceFiles(inputDir: string, patterns: string[]): string[] {
@@ -128,7 +268,42 @@ function extractReferencias(content: string, currentNumber: number): number[] {
   return [...refs]
 }
 
-function extractArticulos(content: string): RawArticulo[] {
+function extractArticulosFromLines(lines: string[], articleHeaders: LineIndex['articleHeaders']): RawArticulo[] {
+  const articulos: RawArticulo[] = []
+  const fullContent = lines.join('\n')
+  const capitulosLegales = findCapitulosLegales(fullContent)
+
+  for (let h = 0; h < articleHeaders.length; h++) {
+    const header = articleHeaders[h]
+    const startLine = header.line
+    const endLine = h + 1 < articleHeaders.length ? articleHeaders[h + 1].line : lines.length
+
+    const num = header.number
+    const blockLines = lines.slice(startLine + 1, endLine)
+    const rawContent = cleanPageBreaks(blockLines.join('\n').trim())
+
+    const tituloMatch = rawContent.match(/^(.+?)(?:\n|$)/)
+    const titulo = tituloMatch ? tituloMatch[1].trim() : ''
+
+    const refs = extractReferencias(rawContent, num)
+    const articleBlock = lines.slice(startLine, endLine).join('\n')
+    const capMatch = findCapituloLegalAnterior(capitulosLegales, fullContent, articleBlock)
+
+    articulos.push({ number: num, title: titulo, content: rawContent, references: refs, legal_chapter: capMatch })
+  }
+
+  return articulos
+}
+
+function extractArticulos(content: string, index?: LineIndex): RawArticulo[] {
+  if (index && index.articleHeaders.length > 0) {
+    return extractArticulosFromLines(content.split('\n'), index.articleHeaders)
+  }
+
+  if (index && index.articleHeaders.length === 0) {
+    console.warn('fallback: no se encontraron artículos en el índice, escaneando completo')
+  }
+
   const articulos: RawArticulo[] = []
   const artPattern = new RegExp(`(?=\\*\\*${ARTICULO_RE.source}\\s+\\d+[º°]?\\.?\\*\\*)`, 'g')
 
@@ -217,8 +392,114 @@ function extractCapitulosSA(content: string): RawCapituloSA[] {
   return capitulos
 }
 
-function extractCodigos(content: string): RawCodigo[] {
+function extractSubpartidaLevels(code: string): RawSubpartida[] {
+  const levels: RawSubpartida[] = []
+  const clean = code.replace(/\./g, '')
+
+  const parts = [
+    { display: clean.slice(0, 4), level: 4 },
+    { display: `${clean.slice(0, 4)}.${clean.slice(4, 6)}`, level: 6 },
+    { display: `${clean.slice(0, 4)}.${clean.slice(4, 6)}.${clean.slice(6, 8)}`, level: 8 },
+  ]
+
+  for (const p of parts) {
+    const id = `sub-${p.display.replace(/\./g, '')}`
+    levels.push({
+      id,
+      code: p.display.replace(/\./g, ''),
+      display: p.display,
+      description: '',
+      level: p.level,
+      parent: levels.length > 0 ? levels[levels.length - 1].id : null,
+    })
+  }
+
+  return levels
+}
+
+function extractCodigosFromTable(lines: string[], start: number, end: number): { codigos: RawCodigo[], subpartidas: RawSubpartida[] } {
   const codigos: RawCodigo[] = []
+  const subpartidaMap = new Map<string, RawSubpartida>()
+
+  const subPartidaRe = /^(\d{4}\.\d{2}\.\d{2}\.\d{2}(?:\.\d)?)$/
+
+  for (let i = start + 4; i <= end; i++) {
+    const line = lines[i]
+    const trimmed = line.trim()
+
+    if (trimmed === '' || trimmed.startsWith('---')) continue
+    if (!line.startsWith('|')) continue
+
+    const parts = line.split('|').map((p) => p.trim())
+    if (parts.length < 8) continue
+
+    const codeRaw = parts[1]
+    const descRaw = parts[2]
+    const aecRaw = parts[3] || ''
+    const exAecRaw = parts[4] || ''
+    const riRaw = parts[5] || ''
+    const reRaw = parts[6] || ''
+    const ufRaw = parts[7] || ''
+
+    const cleanCode = codeRaw.replace(/<[^>]*>/g, '').trim()
+    const codeMatch = cleanCode.match(/^(\d{4}\.\d{2}\.\d{2}\.\d{2})$/)
+    if (!codeMatch) continue
+
+    const fullCode = codeMatch[1]
+    const desc = descRaw.replace(/<[^>]*>/g, '').trim()
+
+    codigos.push({
+      code: fullCode,
+      description: desc,
+      aec: aecRaw ? parseFloat(aecRaw) : null,
+      ex_aec: exAecRaw || null,
+      import_regime: riRaw ? riRaw.split(',').map((s) => s.trim()).filter(Boolean) : [],
+      export_regime: reRaw ? reRaw.split(',').map((s) => s.trim()).filter(Boolean) : [],
+      physical_unit: ufRaw || null,
+      path: [],
+    })
+
+    const levels = extractSubpartidaLevels(fullCode)
+    for (const sub of levels) {
+      if (!subpartidaMap.has(sub.id)) {
+        subpartidaMap.set(sub.id, sub)
+      }
+    }
+  }
+
+  const subpartidas = [...subpartidaMap.values()]
+  for (const cod of codigos) {
+    cod.path = extractSubpartidaLevels(cod.code).map((s) => s.id)
+  }
+
+  return { codigos, subpartidas }
+}
+
+function extractCodigos(content: string, index?: LineIndex): { codigos: RawCodigo[], subpartidas: RawSubpartida[] } {
+  if (index && index.codeTables.length > 0) {
+    const lines = content.split('\n')
+    const result = { codigos: [] as RawCodigo[], subpartidas: [] as RawSubpartida[] }
+    for (const table of index.codeTables) {
+      const tableResult = extractCodigosFromTable(lines, table.start, table.end)
+      result.codigos.push(...tableResult.codigos)
+
+      const seenIds = new Set(result.subpartidas.map((s) => s.id))
+      for (const sub of tableResult.subpartidas) {
+        if (!seenIds.has(sub.id)) {
+          result.subpartidas.push(sub)
+          seenIds.add(sub.id)
+        }
+      }
+    }
+    return result
+  }
+
+  if (index && index.codeTables.length === 0) {
+    console.warn('fallback: no se encontraron tablas de códigos en el índice, escaneando completo')
+  }
+
+  const codigos: RawCodigo[] = []
+  const subpartidaMap = new Map<string, RawSubpartida>()
   const lines = content.split('\n')
   let inTable = false
 
@@ -255,7 +536,8 @@ function extractCodigos(content: string): RawCodigo[] {
     const reRaw = parts[6] || ''
     const ufRaw = parts[7] || ''
 
-    const codeMatch = codeRaw.match(/^(\d{4}\.\d{2}\.\d{2}\.\d{2})$/)
+    const cleanCode = codeRaw.replace(/<[^>]*>/g, '').trim()
+    const codeMatch = cleanCode.match(/^(\d{4}\.\d{2}\.\d{2}\.\d{2})$/)
     if (!codeMatch) continue
 
     const fullCode = codeMatch[1]
@@ -268,10 +550,56 @@ function extractCodigos(content: string): RawCodigo[] {
       import_regime: riRaw ? riRaw.split(',').map((s) => s.trim()).filter(Boolean) : [],
       export_regime: reRaw ? reRaw.split(',').map((s) => s.trim()).filter(Boolean) : [],
       physical_unit: ufRaw || null,
+      path: [],
     })
+
+    const levels = extractSubpartidaLevels(fullCode)
+    for (const sub of levels) {
+      if (!subpartidaMap.has(sub.id)) {
+        subpartidaMap.set(sub.id, sub)
+      }
+    }
   }
 
-  return codigos
+  const subpartidas = [...subpartidaMap.values()]
+  for (const cod of codigos) {
+    cod.path = extractSubpartidaLevels(cod.code).map((s) => s.id)
+  }
+
+  return { codigos, subpartidas }
+}
+
+function extractTableNotes(lines: string[], index: LineIndex): RawNota[] {
+  const notas: RawNota[] = []
+  const complementariaRe = /Nota\s+Complementaria/i
+
+  for (const table of index.codeTables) {
+    for (let i = table.start; i <= table.end; i++) {
+      const line = lines[i]
+      const trimmed = line.trim()
+      if (trimmed.includes('|') && trimmed.match(/\|[\s]*\|/)) continue
+      if (complementariaRe.test(trimmed)) {
+        const noteStart = i
+        let noteEnd = i + 1
+        while (noteEnd <= table.end) {
+          const nl = lines[noteEnd].trim()
+          if (nl.startsWith('|') || nl === '' || nl.startsWith('---')) { noteEnd++; continue }
+          if (nl.match(/^#{1,5}\s+/) || nl.match(/^\*\*/)) break
+          noteEnd++
+        }
+        const text = lines.slice(noteStart, noteEnd).map((l) => l.trim()).filter(Boolean).join(' ')
+        notas.push({
+          type: 'complementaria',
+          section: null,
+          chapter: null,
+          text,
+          scope: null,
+        })
+      }
+    }
+  }
+
+  return notas
 }
 
 function extractRegimenes(content: string): RawRegimen[] {
@@ -303,11 +631,17 @@ export function parseFile(filePath: string, filename: string): ParsedFile {
   const raw = fs.readFileSync(filePath, 'utf-8')
   const content = cleanPageBreaks(raw)
 
-  const documento = extractDocumento(content, filename)
-  const articulos = extractArticulos(content)
-  const capitulos_sa = extractCapitulosSA(content)
-  const codigos = extractCodigos(content)
-  const regimenes = extractRegimenes(content)
+  const lines = content.split('\n')
+  const index = buildLineIndex(lines)
 
-  return { path: filePath, filename, document: documento, articles: articulos, sa_chapters: capitulos_sa, codes: codigos, regimes: regimenes }
+  const documento = extractDocumento(content, filename)
+  const articulos = extractArticulos(content, index)
+  const capitulos_sa = index.sectionsRegion
+    ? extractSectionsAndChapters(lines, index.sectionsRegion.start, index.sectionsRegion.end)
+    : extractCapitulosSA(content)
+  const { codigos, subpartidas } = extractCodigos(content, index)
+  const regimenes = extractRegimenes(content)
+  const notas = extractSectionNotes(lines, index)
+
+  return { path: filePath, filename, document: documento, articles: articulos, sa_chapters: capitulos_sa, codes: codigos, regimes: regimenes, subpartidas, notas }
 }

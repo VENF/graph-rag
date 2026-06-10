@@ -34,6 +34,11 @@ node_types:
     label: "Regímenes Legales"
     description: "Régimen legal (permiso, licencia, restricción)"
     tags: "regimen-legal"
+  subpartida:
+    dir: "05-subpartidas"
+    label: "Subpartidas SA"
+    description: "Partida y subpartida SA de 4/6/8 dígitos"
+    tags: "subpartida, partida-sa"
 
 relationships:
   - "es_parte_de"                          # Jerarquía documental (hijo → padre)

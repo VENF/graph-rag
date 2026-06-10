@@ -47,7 +47,6 @@ function writeNodoFile(
   typeDirMap: Record<string, string>,
 ): void {
   const dirPath = path.join(outputDir, subdir);
-  fs.mkdirSync(dirPath, { recursive: true });
 
   const filename = `${nodo.id}.md`;
   const filePath = path.join(dirPath, filename);
@@ -86,6 +85,7 @@ const CONFIG_KEY_TO_TIPO: Record<string, string> = {
   articulo: "articulo",
   codigo: "codigo-arancelario",
   regimen: "regimen-legal",
+  subpartida: "subpartida",
 }
 
 const TIPO_TO_CONFIG_KEY = Object.fromEntries(
@@ -98,6 +98,7 @@ const PREFIX_TO_CONFIG_KEY: Record<string, string> = {
   art: "articulo",
   cod: "codigo",
   reg: "regimen",
+  sub: "subpartida",
 };
 
 function resolveDestPath(
@@ -145,6 +146,7 @@ function generateIndexFile(
   content += `| Capítulos SA | ${counts["capitulo"] || 0} |\n`;
   content += `| Artículos | ${counts["articulo"] || 0} |\n`;
   content += `| Códigos arancelarios | ${counts["codigo-arancelario"] || 0} |\n`;
+  content += `| Subpartidas | ${counts["subpartida"] || 0} |\n`;
   content += `| Regímenes legales | ${counts["regimen-legal"] || 0} |\n\n`;
 
   content += "## Índice de Nodos\n\n";
@@ -253,6 +255,16 @@ export function generateGraphFiles(
   const typeDirMap: Record<string, string> = {};
   for (const [typeName, typeCfg] of Object.entries(config.node_types)) {
     typeDirMap[typeName] = typeCfg.dir;
+  }
+
+  const seenDirs = new Set<string>()
+  for (const nodo of nodos.values()) {
+    const configKey = TIPO_TO_CONFIG_KEY[nodo.type] || "";
+    const subdir = configKey && typeDirMap[configKey] ? typeDirMap[configKey] : "otros";
+    if (!seenDirs.has(subdir)) {
+      fs.mkdirSync(path.join(outputDir, subdir), { recursive: true })
+      seenDirs.add(subdir)
+    }
   }
 
   const relacionesPorOrigen = new Map<string, Relacion[]>();

@@ -4,6 +4,7 @@ export type NodeType =
   | 'articulo'
   | 'codigo-arancelario'
   | 'regimen-legal'
+  | 'subpartida'
 
 export type RelacionType =
   | 'es_parte_de'
