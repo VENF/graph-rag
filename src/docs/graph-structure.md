@@ -15,19 +15,25 @@ knowledge-graph/
 ├── 01-capitulos/          # Capítulos del Sistema Armonizado (98)
 │   ├── cap-01-animales-vivos.md
 │   └── ...
-├── 02-articulos/          # Artículos legales (46)
+├── 02-articulos/          # Artículos legales (41)
 │   ├── art-001.md
 │   └── ...
-├── 03-codigos/            # Códigos arancelarios 10 dígitos (11.765)
+├── 03-codigos/            # Códigos arancelarios 10 dígitos (11.811)
 │   ├── cod-0101210010.md
 │   └── ...
 ├── 04-regimenes/          # Regímenes legales (21)
 │   ├── reg-001.md
 │   └── ...
-└── 05-subpartidas/        # Subpartidas SA 4d/6d/8d (17.271)
-    ├── sub-0101.md        # Partida (4 dígitos)
-    ├── sub-010121.md      # Subpartida (6 dígitos)
-    ├── sub-01012100.md    # Subpartida (8 dígitos)
+├── 05-subpartidas/        # Subpartidas SA 4d/6d/8d (17.368)
+│   ├── sub-0101.md        # Partida (4 dígitos)
+│   ├── sub-010121.md      # Subpartida (6 dígitos)
+│   ├── sub-01012100.md    # Subpartida (8 dígitos)
+│   └── ...
+├── 06-notas-legales/      # Notas legales (243)
+│   ├── nota-01-capitulo-0.md
+│   └── ...
+└── 07-subcapitulos/       # Subcapítulos (4)
+    ├── subcap-98-i.md
     └── ...
 ```
 
@@ -109,19 +115,30 @@ Código SA de 10 dígitos (subpartida nacional). Corresponde a la hoja de la tab
 id: cod-0101210010
 type: codigo-arancelario
 code: 0101.21.00.10
-description: Caballos reproductores de raza pura para carreras
-sa_chapter: 01
-aec: 0
+description: Para carreras
+sa_chapter: '01'
+aec:
+  rate: 0
+  qualifier: null
 ex_aec: null
+ex_aec_legal_refs: []
 physical_unit: u
-import_regime: []
-export_regime: [5, 6]
+import_regime:
+  - '5'
+  - '6'
+export_regime: []
+source_document: doc-gaceta-6804
+history:
+  - document: doc-gaceta-6804
+    date: '2024-04-25'
+    type: creación
 ```
 
 **Relaciones salientes:**
 - `es_parte_de → documento` (se originó en este documento)
 - `pertenece_a → capitulo` (pertenece a un capítulo SA)
 - `requiere → regimen-legal` (requiere ciertos permisos/licencias)
+- `sujeto_a → articulo` (sujeto a excepción legal del artículo, si aplica)
 
 ---
 
@@ -133,13 +150,21 @@ Capítulo del Sistema Armonizado (SA). Nodo padre de los códigos arancelarios.
 ```yaml
 id: cap-01-animales-vivos
 type: capitulo
-number: 01
+number: '01'
 title: Animales vivos
 section: I
 section_title: Animales vivos y productos del reino animal
+notes:
+  - type: capitulo
+    text: |
+      Este Capítulo comprende todos los animales vivos, excepto:
+      - los peces, crustáceos...
+  - type: complementaria
+    text: |
+      Las expresiones "pelajes"...
 ```
 
-**Relaciones entrantes:** `pertenece_a ← codigo`
+**Relaciones entrantes:** `pertenece_a ← codigo`, `aclara ← nota-legal`, `es_parte_de ← subpartida(4d)`
 
 ---
 
@@ -160,6 +185,45 @@ entity: MAT (Ministerio de Agricultura y Tierras)
 
 ---
 
+### `nota-legal` → `06-notas-legales/`
+
+Cada nota legal de sección, capítulo, subcapítulo, subpartida o complementaria extraída del artículo 37. Antes embebidas como metadatos de capítulo, ahora son nodos independientes con relación `aclara` hacia su capítulo.
+
+**Frontmatter:**
+```yaml
+id: nota-01-capitulo-0
+type: nota-legal
+nota_type: capitulo
+section: I
+chapter: '01'
+```
+
+**Relaciones salientes:** `aclara → capitulo` (nota aclara el capítulo al que pertenece)
+**Relaciones salientes (si aplica):** `modifica_criterio → subpartida/codigo` (nota de subpartida con scope)
+
+---
+
+### `subcapitulo` → `07-subcapitulos/`
+
+Subcapítulos del Sistema Armonizado dentro de un capítulo SA. Actualmente limitado al Capítulo 98 (Subcapítulos I–IV), que definen regímenes especiales de ensamblaje automotriz e industrial.
+
+**Frontmatter:**
+```yaml
+id: subcap-98-i
+type: subcapitulo
+chapter: '98'
+roman: I
+title: SUBCAPÍTULO I PARTES, PIEZAS Y COMPONENTES PARA EL ENSAMBLAJE DE VEHÍCULOS AUTOMOTORES...
+notes:
+  - type: subcapitulo
+    text: |
+      - El Subcapítulo I tiene por objeto...
+```
+
+**Relaciones salientes:** `subdivide → capitulo` (subcapítulo subdivide al capítulo SA)
+
+---
+
 ## Modelo de Relaciones
 
 ### Visu del Grafo
@@ -170,9 +234,13 @@ DOCUMENTO ──contiene──▶ CAPÍTULO ◀──es_parte_de── SUBPARTID
 DOCUMENTO ──contiene──▶ SUBPARTIDA(4d) ──es_parte_de──▶ SUBPARTIDA(6d) ──es_parte_de──▶ SUBPARTIDA(8d)
 DOCUMENTO ──contiene──▶ CÓDIGO ──es_parte_de──▶ SUBPARTIDA(8d)
 DOCUMENTO ──contiene──▶ CÓDIGO ──pertenece_a──▶ CAPÍTULO
-CÓDIGO ──requiere──▶ RÉGIMEN
+CÓDIGO ──requiere────▶ RÉGIMEN
+CÓDIGO ──sujeto_a────▶ ARTÍCULO (11/12)
 ARTÍCULO ──regula────▶ RÉGIMEN
 ARTÍCULO ──regula────▶ CÓDIGO
+NOTA_LEGAL ──aclara──▶ CAPÍTULO
+NOTA_LEGAL ──modifica_criterio──▶ SUBPARTIDA / CÓDIGO
+SUBCAPÍTULO ──subdivide──▶ CAPÍTULO
 ```
 
 ### Relaciones disponibles
@@ -188,6 +256,10 @@ ARTÍCULO ──regula────▶ CÓDIGO
 | `regula` | articulo | regimen, codigo | Base legal que regula ciertos regímenes/códigos |
 | `requiere` | codigo | regimen | Requisito legal aplicable al código |
 | `refiere_a` | articulo | articulo | Referencia cruzada entre artículos |
+| `aclara` | nota-legal | capitulo | Nota legal aclara el contenido del capítulo |
+| `modifica_criterio` | nota-legal | subpartida, codigo | Nota de subpartida modifica criterio de clasificación |
+| `sujeto_a` | codigo | articulo | Código sujeto a excepción legal del artículo |
+| `subdivide` | subcapitulo | capitulo | Subcapítulo subdivide al capítulo SA |
 
 ---
 
@@ -247,11 +319,13 @@ El `_schema.md` se actualiza automáticamente para reflejar los tipos de nodo re
 
 ```
 documento:  doc-{gaceta|decreto}-{numero}
-capitulo:   cap-{numero}-{slug-titulo}          (slug truncado a 60 chars)
+capitulo:   cap-{numero}-{slug-titulo}              (slug truncado a 60 chars)
 articulo:   art-{numero-3-digitos}
 codigo:     cod-{codigo-sin-puntos}
-subpartida: sub-{codigo-sin-puntos}             (4d, 6d, u 8d)
+subpartida: sub-{codigo-sin-puntos}                 (4d, 6d, u 8d)
 regimen:    reg-{codigo-3-digitos}
+nota-legal: nota-{chapter}-{tipo}-{n}               (cap 01, tipo capitulo, índice)
+subcapitulo: subcap-{chapter}-{roman}               (cap 98, i/ii/iii/iv)
 ```
 
 ## Formato de los Wikilinks

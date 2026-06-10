@@ -40,6 +40,8 @@ El builder transforma documentos fuente (Gacetas Oficiales con el Arancel de Adu
 | - códigos (10d)                    |
 | - subpartidas (4d/6d/8d)          |
 | - regímenes                        |
+| - notas legales (243)              |
+| - subcapítulos (4: Cap 98 I-IV)    |
 +------------------------------------+
          |
          v
@@ -52,6 +54,10 @@ El builder transforma documentos fuente (Gacetas Oficiales con el Arancel de Adu
 | - código → régimen                 |
 | - artículo → código/régimen        |
 | - referencias entre artículos      |
+| - nota-legal → capítulo (aclara)   |
+| - nota-legal → sub/cod (modifica)  |
+| - código → artículo (sujeto_a)     |
+| - subcapítulo → capítulo (subdv)   |
 +------------------------------------+
          |
          v
@@ -107,6 +113,10 @@ Si el índice no produce resultados, el extractor cae a escaneo completo con una
 - Códigos a regímenes legales que los regulan — `requiere`
 - Artículos a otros artículos referenciados — `refiere_a`
 - Artículos a regímenes y códigos que regulan — `regula`
+- Notas legales a su capítulo — `aclara`
+- Notas de subpartida con scope a las subpartidas/códigos que modifican — `modifica_criterio`
+- Códigos con excepción al AEC al artículo que la fundamenta (Art. 11/12) — `sujeto_a`
+- Subcapítulos a su capítulo SA padre — `subdivide`
 
 ### Generación de archivos
 
@@ -123,7 +133,7 @@ Si el índice no produce resultados, el extractor cae a escaneo completo con una
   - Verde brillante = 100%
   - Verde ≥ 50%
   - Rojo < 50%
-- **Conteo por tipo de nodo**: documento, capítulo, artículo, código, subpartida, régimen
+- **Conteo por tipo de nodo**: documento, capítulo, artículo, código, subpartida, régimen, nota-legal, subcapítulo
 
 ## Historial Inmutable
 

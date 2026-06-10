@@ -7,6 +7,7 @@ import type {
   RawRegimen,
   RawDocumento,
   RawCapituloSA,
+  RawSubcapitulo,
   RawNota,
   ParsedFile,
 } from './types.js'
@@ -22,6 +23,7 @@ export interface LineIndex {
   articleHeaders: Array<{ line: number; number: number }>
   codeTables: Array<{ start: number; end: number }>
   sectionsRegion?: { start: number; end: number }
+  articleNotesRegion?: { start: number; end: number }
 }
 
 export function buildLineIndex(lines: string[]): LineIndex {
@@ -62,6 +64,21 @@ export function buildLineIndex(lines: string[]): LineIndex {
       }
       index.sectionsRegion = { start, end: end - 1 }
     }
+  }
+
+  if (index.sectionsRegion) {
+    let articleStart = index.sectionsRegion.end + 1
+    while (articleStart < lines.length) {
+      const line = lines[articleStart].trim()
+      if (line.match(/^###\s*\*{0,2}SECCI[OÓ]N\b/)) break
+      articleStart++
+    }
+    let articleEnd = articleStart + 1
+    while (articleEnd < lines.length) {
+      if (lines[articleEnd].trim().startsWith('## ')) break
+      articleEnd++
+    }
+    index.articleNotesRegion = { start: articleStart, end: articleEnd - 1 }
   }
 
   return index
@@ -417,13 +434,53 @@ function extractSubpartidaLevels(code: string): RawSubpartida[] {
   return levels
 }
 
+function parseAec(raw: string): RawCodigo['aec'] {
+  const sanitized = raw.replace(/^O(?=BIT)/, '0')
+  const match = sanitized.match(/^([\d.]+)(BK|BIT)?$/)
+  if (!match) return { rate: null, qualifier: null }
+  return {
+    rate: parseFloat(match[1]),
+    qualifier: (match[2] as 'BK' | 'BIT') || null,
+  }
+}
+
+const EX_AEC_LEGAL_MAP: Record<string, string> = {
+  E: 'Artículo 11 (Excepción al AEC)',
+  A: 'Artículo 12 (Bienes del Sector Aeronáutico)',
+  DV: 'Subcapítulo II (Contingente Arancelario — Derecho Variable)',
+}
+
+function parseExAec(raw: string): { value: string; refs: string[] } {
+  const sanitized = raw.replace(/^O(?=E\b)/, '0')
+  const refs: string[] = []
+  const bands = sanitized.split(',')
+  for (const band of bands) {
+    const b = band.trim()
+    if (/[Ee]/.test(b) && !refs.includes(EX_AEC_LEGAL_MAP.E)) refs.push(EX_AEC_LEGAL_MAP.E)
+    if (/[Aa]/.test(b) && !refs.includes(EX_AEC_LEGAL_MAP.A)) refs.push(EX_AEC_LEGAL_MAP.A)
+    if (/±?\s*DV/i.test(b) && !refs.includes(EX_AEC_LEGAL_MAP.DV)) refs.push(EX_AEC_LEGAL_MAP.DV)
+  }
+  return { value: sanitized, refs }
+}
+
+function extractScopeCodes(text: string): string[] {
+  const codes: string[] = []
+  const re = /subpartida\s+(\d{4}\.\d{2}(?:\.\d{2}(?:\.\d{2})?)?)/gi
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) {
+    codes.push(m[1].replace(/\./g, ''))
+  }
+  return codes
+}
+
 function extractCodigosFromTable(lines: string[], start: number, end: number): { codigos: RawCodigo[], subpartidas: RawSubpartida[] } {
   const codigos: RawCodigo[] = []
   const subpartidaMap = new Map<string, RawSubpartida>()
+  const descOverrides = new Map<string, string>()
 
   const subPartidaRe = /^(\d{4}\.\d{2}\.\d{2}\.\d{2}(?:\.\d)?)$/
 
-  for (let i = start + 4; i <= end; i++) {
+  for (let i = start + 3; i <= end; i++) {
     const line = lines[i]
     const trimmed = line.trim()
 
@@ -431,41 +488,73 @@ function extractCodigosFromTable(lines: string[], start: number, end: number): {
     if (!line.startsWith('|')) continue
 
     const parts = line.split('|').map((p) => p.trim())
-    if (parts.length < 8) continue
+    if (parts.length < 5) continue
 
     const codeRaw = parts[1]
     const descRaw = parts[2]
     const aecRaw = parts[3] || ''
     const exAecRaw = parts[4] || ''
-    const riRaw = parts[5] || ''
-    const reRaw = parts[6] || ''
-    const ufRaw = parts[7] || ''
+    const riRaw = parts.length >= 8 ? (parts[5] || '') : ''
+    const reRaw = parts.length >= 8 ? (parts[6] || '') : ''
+    const ufRaw = parts.length >= 8 ? (parts[7] || '') : (parts[5] || '')
 
     const cleanCode = codeRaw.replace(/<[^>]*>/g, '').trim()
+    const desc = descRaw.replace(/<[^>]*>/g, '').trim().replace(/^[-–\s]+/, '')
     const codeMatch = cleanCode.match(/^(\d{4}\.\d{2}\.\d{2}\.\d{2})$/)
-    if (!codeMatch) continue
 
-    const fullCode = codeMatch[1]
-    const desc = descRaw.replace(/<[^>]*>/g, '').trim()
+    if (codeMatch) {
+      const fullCode = codeMatch[1]
 
-    codigos.push({
-      code: fullCode,
-      description: desc,
-      aec: aecRaw ? parseFloat(aecRaw) : null,
-      ex_aec: exAecRaw || null,
-      import_regime: riRaw ? riRaw.split(',').map((s) => s.trim()).filter(Boolean) : [],
-      export_regime: reRaw ? reRaw.split(',').map((s) => s.trim()).filter(Boolean) : [],
-      physical_unit: ufRaw || null,
-      path: [],
-    })
+      codigos.push({
+        code: fullCode,
+        description: desc,
+        aec: aecRaw ? parseAec(aecRaw) : null,
+        ex_aec: exAecRaw || null,
+        ex_aec_legal_refs: exAecRaw ? parseExAec(exAecRaw).refs : [],
+        import_regime: riRaw ? riRaw.split(',').map((s) => s.trim()).filter(Boolean) : [],
+        export_regime: reRaw ? reRaw.split(',').map((s) => s.trim()).filter(Boolean) : [],
+        physical_unit: ufRaw || null,
+        path: [],
+      })
 
-    const levels = extractSubpartidaLevels(fullCode)
-    for (const sub of levels) {
-      if (!subpartidaMap.has(sub.id)) {
-        subpartidaMap.set(sub.id, sub)
+      const levels = extractSubpartidaLevels(fullCode)
+      for (const sub of levels) {
+        if (!subpartidaMap.has(sub.id)) {
+          subpartidaMap.set(sub.id, sub)
+        }
+      }
+    }
+
+    if (desc) {
+      const boldMatch = codeRaw.match(/<b>(\d{2})\.(\d{2})<\/b>/)
+      if (boldMatch) {
+        const subId = `sub-${boldMatch[1]}${boldMatch[2]}`
+        descOverrides.set(subId, desc)
+      }
+
+      const match8d = cleanCode.match(/^(\d{4})\.(\d{2})\.(\d{2})$/)
+      if (match8d) {
+        const code8d = match8d[1] + match8d[2] + match8d[3]
+        const subId6 = `sub-${match8d[1]}${match8d[2]}`
+        const subId8 = `sub-${code8d}`
+        if (!descOverrides.has(subId6)) descOverrides.set(subId6, desc)
+        if (!descOverrides.has(subId8)) descOverrides.set(subId8, desc)
+      }
+
+      const match6d = cleanCode.match(/^(\d{4})\.(\d{2})$/)
+      if (match6d) {
+        const subId = `sub-${match6d[1]}${match6d[2]}`
+        if (!descOverrides.has(subId)) descOverrides.set(subId, desc)
       }
     }
   }
+
+  for (const [id, description] of descOverrides) {
+    if (subpartidaMap.has(id)) {
+      subpartidaMap.get(id)!.description = description
+    }
+  }
+
 
   const subpartidas = [...subpartidaMap.values()]
   for (const cod of codigos) {
@@ -508,7 +597,7 @@ function extractCodigos(content: string, index?: LineIndex): { codigos: RawCodig
 
     if (line.includes('| Código') && line.includes('Descripción')) {
       inTable = true
-      i += 3
+      i += 2
       continue
     }
 
@@ -526,15 +615,15 @@ function extractCodigos(content: string, index?: LineIndex): { codigos: RawCodig
     }
 
     const parts = line.split('|').map((p) => p.trim())
-    if (parts.length < 8) continue
+    if (parts.length < 5) continue
 
     const codeRaw = parts[1]
     const descRaw = parts[2]
     const aecRaw = parts[3] || ''
     const exAecRaw = parts[4] || ''
-    const riRaw = parts[5] || ''
-    const reRaw = parts[6] || ''
-    const ufRaw = parts[7] || ''
+    const riRaw = parts.length >= 8 ? (parts[5] || '') : ''
+    const reRaw = parts.length >= 8 ? (parts[6] || '') : ''
+    const ufRaw = parts.length >= 8 ? (parts[7] || '') : (parts[5] || '')
 
     const cleanCode = codeRaw.replace(/<[^>]*>/g, '').trim()
     const codeMatch = cleanCode.match(/^(\d{4}\.\d{2}\.\d{2}\.\d{2})$/)
@@ -545,8 +634,9 @@ function extractCodigos(content: string, index?: LineIndex): { codigos: RawCodig
     codigos.push({
       code: fullCode,
       description: descRaw.replace(/<[^>]*>/g, '').trim(),
-      aec: aecRaw ? parseFloat(aecRaw) : null,
+      aec: aecRaw ? parseAec(aecRaw) : null,
       ex_aec: exAecRaw || null,
+      ex_aec_legal_refs: exAecRaw ? parseExAec(exAecRaw).refs : [],
       import_regime: riRaw ? riRaw.split(',').map((s) => s.trim()).filter(Boolean) : [],
       export_regime: reRaw ? reRaw.split(',').map((s) => s.trim()).filter(Boolean) : [],
       physical_unit: ufRaw || null,
@@ -627,6 +717,143 @@ function extractRegimenes(content: string): RawRegimen[] {
   return regimenes
 }
 
+const SECTION_IN_ARTICLE_RE = /^###\s*\*{0,2}SECCI[OÓ]N\s+(I{1,3}V?|IV|V?I{0,3})\b/i
+const CHAPTER_IN_ARTICLE_RE = /^####\s*\*{0,2}CAP[IÍ]TULO\s+(\d+)\b/i
+const SUBCAPITULO_IN_ARTICLE_RE = /^####\s*\*{0,2}SUBCAP[ÍI]TULO\s+(I{1,3}V?|IV|V?I{0,3})\b/i
+const NOTE_HEADER_RE = /^#{5}\s*\*{0,2}(Notas?\s+de\s+subpartida|Notas?\s+Complementarias?(?:\s*\([^)]+\))?|Notas?)[\.:]?\*{0,2}\s*$/i
+const SUBCAP_NOTE_RE = /Notas?\s+de\s+Subcap[íi]tulo/i
+
+export function extractArticleChapterNotes(lines: string[], index: LineIndex): RawNota[] {
+  if (!index.articleNotesRegion) return []
+  const notas: RawNota[] = []
+  let currentSection: string | null = null
+  let currentChapter: string | null = null
+  let afterSectionHeader = true
+
+  for (let i = index.articleNotesRegion.start; i <= index.articleNotesRegion.end; i++) {
+    const line = lines[i].trim()
+
+    const secMatch = line.match(SECTION_IN_ARTICLE_RE)
+    if (secMatch) {
+      currentSection = secMatch[1].trim()
+      currentChapter = null
+      afterSectionHeader = true
+      continue
+    }
+
+    const capMatch = line.match(CHAPTER_IN_ARTICLE_RE)
+    if (capMatch) {
+      currentChapter = String(parseInt(capMatch[1], 10)).padStart(2, '0')
+      afterSectionHeader = false
+      continue
+    }
+
+    if (!line.match(/^#{5}\s+/)) continue
+
+    const header = line.replace(/^\#{5}\s*\*{0,2}/, '').replace(/\*{0,2}\s*$/, '').trim()
+
+    if (SUBCAP_NOTE_RE.test(header)) {
+      let ne = i + 1
+      while (ne <= index.articleNotesRegion.end) {
+        const nl = lines[ne].trim()
+        if (nl.match(/^#{1,5}\s+/) || nl.startsWith('| Código') || nl.match(/^\| *Código/)) break
+        ne++
+      }
+      notas.push({
+        type: 'subcapitulo',
+        section: currentSection,
+        chapter: currentChapter,
+        text: lines.slice(i + 1, ne).map((l) => l.trim()).filter((l) => l.length > 0).join('\n'),
+        scope: null,
+      })
+      continue
+    }
+    if (!/^notas?\b/i.test(header)) continue
+
+    let type: RawNota['type']
+    if (/notas?\s+de\s+subpartida/i.test(header)) {
+      type = 'subpartida'
+    } else if (/notas?\s+complementaria/i.test(header)) {
+      type = 'complementaria'
+    } else {
+      type = afterSectionHeader ? 'seccion' : 'capitulo'
+    }
+
+    let noteEnd = i + 1
+    while (noteEnd <= index.articleNotesRegion.end) {
+      const nl = lines[noteEnd].trim()
+      if (nl.match(/^#{1,5}\s+/) || nl.startsWith('| Código') || nl.match(/^\| *Código/)) break
+      noteEnd++
+    }
+
+    const text = lines.slice(i + 1, noteEnd)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0)
+      .join('\n')
+
+    const scope = type === 'subpartida' ? extractScopeCodes(text).join(',') || null : null
+
+    notas.push({
+      type,
+      section: currentSection,
+      chapter: type === 'capitulo' || type === 'subpartida' || type === 'complementaria' ? currentChapter : null,
+      text,
+      scope,
+    })
+  }
+
+  return notas
+}
+
+export function extractSubcapitulos(lines: string[], index: LineIndex): RawSubcapitulo[] {
+  if (!index.articleNotesRegion) return []
+  const subcapitulos: RawSubcapitulo[] = []
+  let currentSubcap: RawSubcapitulo | null = null
+  let currentChapter: string | null = null
+
+  for (let i = index.articleNotesRegion.start; i <= index.articleNotesRegion.end; i++) {
+    const line = lines[i].trim()
+
+    const capMatch = line.match(CHAPTER_IN_ARTICLE_RE)
+    if (capMatch) {
+      currentChapter = String(parseInt(capMatch[1], 10)).padStart(2, '0')
+    }
+
+    const subcapMatch = line.match(SUBCAPITULO_IN_ARTICLE_RE)
+    if (subcapMatch) {
+      const roman = subcapMatch[1].trim()
+      currentSubcap = {
+        chapter: currentChapter || '',
+        roman,
+        title: line.replace(/^#{1,5}\s*\*{0,2}/, '').replace(/\*{0,2}\s*$/, '').trim(),
+        notes: [],
+      }
+      subcapitulos.push(currentSubcap)
+      continue
+    }
+
+    if (!line.match(/^#{5}\s+/) || !currentSubcap) continue
+    const header = line.replace(/^\#{5}\s*\*{0,2}/, '').replace(/\*{0,2}\s*$/, '').trim()
+    if (!SUBCAP_NOTE_RE.test(header)) continue
+
+    let ne = i + 1
+    while (ne <= index.articleNotesRegion.end) {
+      const nl = lines[ne].trim()
+      if (nl.match(/^#{1,5}\s+/) || nl.startsWith('| Código') || nl.match(/^\| *Código/)) break
+      ne++
+    }
+    currentSubcap.notes.push({
+      type: 'subcapitulo',
+      section: null,
+      chapter: currentSubcap.chapter,
+      text: lines.slice(i + 1, ne).map((l) => l.trim()).filter((l) => l.length > 0).join('\n'),
+      scope: null,
+    })
+  }
+
+  return subcapitulos
+}
+
 export function parseFile(filePath: string, filename: string): ParsedFile {
   const raw = fs.readFileSync(filePath, 'utf-8')
   const content = cleanPageBreaks(raw)
@@ -642,6 +869,21 @@ export function parseFile(filePath: string, filename: string): ParsedFile {
   const { codigos, subpartidas } = extractCodigos(content, index)
   const regimenes = extractRegimenes(content)
   const notas = extractSectionNotes(lines, index)
+  const articleNotes = extractArticleChapterNotes(lines, index)
 
-  return { path: filePath, filename, document: documento, articles: articulos, sa_chapters: capitulos_sa, codes: codigos, regimes: regimenes, subpartidas, notas }
+  const sectionNotes = articleNotes.filter((n) => n.type === 'seccion' || (n.type === 'complementaria' && n.chapter === null))
+  const chapterNotes = articleNotes.filter((n) => n.chapter !== null)
+
+  for (const cap of capitulos_sa) {
+    cap.notes = chapterNotes.filter((n) => n.chapter === cap.number)
+  }
+
+  const subcapitulos = extractSubcapitulos(lines, index)
+
+  return {
+    path: filePath, filename, document: documento, articles: articulos,
+    sa_chapters: capitulos_sa, codes: codigos, regimes: regimenes,
+    subpartidas, notas: [...notas, ...sectionNotes],
+    subcapitulos,
+  }
 }

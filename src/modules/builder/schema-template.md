@@ -52,3 +52,7 @@ En `relations.ts`, agregar:
 | `requiere` | código → régimen | Exigencia legal |
 | `refiere_a` | artículo → artículo | Referencia cruzada |
 | `contiene` | documento → elemento | Contención documental |
+| `aclara` | nota-legal → capítulo | Nota legal aclara capítulo |
+| `modifica_criterio` | nota-legal → subpartida/código | Nota de subpartida modifica criterio |
+| `sujeto_a` | código → artículo | Código sujeto a excepción legal |
+| `subdivide` | subcapítulo → capítulo | Subcapítulo subdivide capítulo SA |

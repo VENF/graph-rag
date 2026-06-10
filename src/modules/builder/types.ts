@@ -10,11 +10,17 @@ export interface RawArticulo {
   legal_chapter: string | null
 }
 
+export interface AecRate {
+  rate: number | null
+  qualifier: 'BK' | 'BIT' | null
+}
+
 export interface RawCodigo {
   code: string
   description: string
-  aec: number | null
+  aec: AecRate | null
   ex_aec: string | null
+  ex_aec_legal_refs: string[]
   import_regime: string[]
   export_regime: string[]
   physical_unit: string | null
@@ -31,7 +37,7 @@ export interface RawSubpartida {
 }
 
 export interface RawNota {
-  type: 'seccion' | 'complementaria' | 'subpartida' | 'capitulo'
+  type: 'seccion' | 'complementaria' | 'subpartida' | 'capitulo' | 'subcapitulo'
   section: string | null
   chapter: string | null
   text: string
@@ -56,6 +62,13 @@ export interface RawDocumento {
   issuer: string
 }
 
+export interface RawSubcapitulo {
+  chapter: string
+  roman: string
+  title: string
+  notes: RawNota[]
+}
+
 export interface RawCapituloSA {
   number: string
   title: string
@@ -74,4 +87,5 @@ export interface ParsedFile {
   regimes: RawRegimen[]
   subpartidas: RawSubpartida[]
   notas: RawNota[]
+  subcapitulos: RawSubcapitulo[]
 }

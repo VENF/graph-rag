@@ -24,3 +24,12 @@ export function regimenId(codigo: string): string {
 export function subpartidaId(code: string): string {
   return `sub-${code.replace(/\./g, '')}`
 }
+
+export function notaId(chapter: string | null, type: string, index: number): string {
+  const prefix = chapter ? `nota-${chapter}` : 'nota-seccion'
+  return `${prefix}-${type}-${index}`
+}
+
+export function subcapituloId(chapter: string, roman: string): string {
+  return `subcap-${chapter}-${roman.toLowerCase()}`
+}

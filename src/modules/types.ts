@@ -5,6 +5,8 @@ export type NodeType =
   | 'codigo-arancelario'
   | 'regimen-legal'
   | 'subpartida'
+  | 'nota-legal'
+  | 'subcapitulo'
 
 export type RelacionType =
   | 'es_parte_de'
@@ -13,6 +15,10 @@ export type RelacionType =
   | 'requiere'
   | 'refiere_a'
   | 'contiene'
+  | 'aclara'
+  | 'modifica_criterio'
+  | 'sujeto_a'
+  | 'subdivide'
 
 export interface Frontmatter {
   id: string

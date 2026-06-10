@@ -1,5 +1,5 @@
-import type { Nodo, Relacion, ParsedFile } from './types.js'
-import { articleId, codeId, chapterId, regimenId, subpartidaId } from './ids.js'
+import type { Nodo, Relacion, ParsedFile, RawNota } from './types.js'
+import { articleId, codeId, chapterId, regimenId, subpartidaId, notaId, subcapituloId } from './ids.js'
 import { slugify } from './utils.js'
 
 const ARTICLES_WITH_PROHIBITION = [25, 27, 28, 29, 30, 31, 32, 33] as const
@@ -168,6 +168,82 @@ function buildArticle37Relations(nodos: Map<string, Nodo>): Relacion[] {
   return relaciones
 }
 
+function buildNotaLegalRelations(file: ParsedFile, nodos: Map<string, Nodo>): Relacion[] {
+  const relaciones: Relacion[] = []
+  let idx = 0
+
+  for (const cap of file.sa_chapters) {
+    const capId = chapterId(cap.number, cap.title)
+    if (!nodos.has(capId)) continue
+    for (const note of cap.notes) {
+      const nid = notaId(cap.number, note.type, idx)
+      if (nodos.has(nid)) {
+        relaciones.push({ type: 'aclara', origin: nid, target: capId })
+      }
+      idx++
+    }
+  }
+
+  return relaciones
+}
+
+function buildNotaScopeRelations(file: ParsedFile, nodos: Map<string, Nodo>): Relacion[] {
+  const relaciones: Relacion[] = []
+  let idx = 0
+
+  for (const cap of file.sa_chapters) {
+    for (const note of cap.notes) {
+      if (note.type !== 'subpartida' || !note.scope) {
+        idx++
+        continue
+      }
+      const nid = notaId(cap.number, note.type, idx)
+      if (!nodos.has(nid)) { idx++; continue }
+
+      const scopeCodes = note.scope.split(',')
+      for (const scopeCode of scopeCodes) {
+        const subId = `sub-${scopeCode}`
+        if (nodos.has(subId)) {
+          relaciones.push({ type: 'modifica_criterio', origin: nid, target: subId })
+        }
+        for (const nodo of nodos.values()) {
+          if (nodo.type === 'codigo-arancelario') {
+            const rawCode = (nodo.metadata.code as string)?.replace(/\./g, '') || ''
+            if (rawCode.startsWith(scopeCode)) {
+              relaciones.push({ type: 'modifica_criterio', origin: nid, target: nodo.id })
+            }
+          }
+        }
+      }
+      idx++
+    }
+  }
+
+  return relaciones
+}
+
+function buildExAecRelations(file: ParsedFile, nodos: Map<string, Nodo>): Relacion[] {
+  const relaciones: Relacion[] = []
+
+  for (const cod of file.codes) {
+    if (!cod.ex_aec_legal_refs || cod.ex_aec_legal_refs.length === 0) continue
+    const codId = codeId(cod.code)
+    if (!nodos.has(codId)) continue
+
+    for (const ref of cod.ex_aec_legal_refs) {
+      const artMatch = ref.match(/Art[íi]culo\s+(\d+)/)
+      if (artMatch) {
+        const artId = articleId(parseInt(artMatch[1], 10))
+        if (nodos.has(artId)) {
+          relaciones.push({ type: 'sujeto_a', origin: codId, target: artId })
+        }
+      }
+    }
+  }
+
+  return relaciones
+}
+
 function buildCapituloMap(nodos: Map<string, Nodo>): Map<string, Nodo> {
   const map = new Map<string, Nodo>()
   for (const nodo of nodos.values()) {
@@ -217,6 +293,22 @@ function buildSubpartidaRelations(file: ParsedFile, nodos: Map<string, Nodo>): R
   return relaciones
 }
 
+function buildSubcapituloRelations(file: ParsedFile, nodos: Map<string, Nodo>): Relacion[] {
+  const relaciones: Relacion[] = []
+  const capMap = buildCapituloMap(nodos)
+
+  for (const subcap of file.subcapitulos) {
+    const id = subcapituloId(subcap.chapter, subcap.roman)
+    if (!nodos.has(id)) continue
+    const capNodo = capMap.get(subcap.chapter)
+    if (capNodo) {
+      relaciones.push({ type: 'subdivide', origin: id, target: capNodo.id })
+    }
+  }
+
+  return relaciones
+}
+
 export function buildRelations(
   nodos: Map<string, Nodo>,
   files: ParsedFile[]
@@ -232,6 +324,10 @@ export function buildRelations(
       ...buildArticle21Relations(file, nodos),
       ...buildArticles22to36Relations(file, nodos),
       ...buildSubpartidaRelations(file, nodos),
+      ...buildNotaLegalRelations(file, nodos),
+      ...buildNotaScopeRelations(file, nodos),
+      ...buildExAecRelations(file, nodos),
+      ...buildSubcapituloRelations(file, nodos),
     )
     relaciones.push(...buildArticle37Relations(nodos))
   }

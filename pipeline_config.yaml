@@ -39,6 +39,16 @@ node_types:
     label: "Subpartidas SA"
     description: "Partida y subpartida SA de 4/6/8 dígitos"
     tags: "subpartida, partida-sa"
+  nota-legal:
+    dir: "06-notas-legales"
+    label: "Notas Legales"
+    description: "Notas legales de sección, capítulo, subcapítulo, subpartida y complementarias"
+    tags: "nota-legal, tipo-X"
+  subcapitulo:
+    dir: "07-subcapitulos"
+    label: "Subcapítulos"
+    description: "Subcapítulos del SA (Ej. Subcapítulo I, II, III del Capítulo 98)"
+    tags: "subcapitulo, division"
 
 relationships:
   - "es_parte_de"                          # Jerarquía documental (hijo → padre)
@@ -47,3 +57,7 @@ relationships:
   - "requiere"                             # Código requiere régimen (código → régimen)
   - "refiere_a"                            # Referencia cruzada entre artículos
   - "contiene"                             # Documento contiene sección/capítulo/artículo
+  - "aclara"                               # Nota legal aclara capítulo
+  - "modifica_criterio"                    # Nota de subpartida modifica criterio de códigos
+  - "sujeto_a"                             # Código sujeto a excepción legal de artículo
+  - "subdivide"                            # Subcapítulo subdivide capítulo SA

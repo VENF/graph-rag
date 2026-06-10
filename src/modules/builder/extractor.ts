@@ -6,11 +6,12 @@ import type {
   RawRegimen,
   RawDocumento,
   RawCapituloSA,
+  RawSubcapitulo,
   RawNota,
   ParsedFile,
 } from './types.js'
 import { slugify } from './utils.js'
-import { documentId, articleId, codeId, chapterId, regimenId, subpartidaId } from './ids.js'
+import { documentId, articleId, codeId, chapterId, regimenId, subpartidaId, notaId, subcapituloId } from './ids.js'
 
 function buildNodo<T extends Record<string, unknown>>(
   id: string,
@@ -109,7 +110,8 @@ export function extractCodigoNodes(
     const id = codeId(cod.code)
     const capNum = cod.code.slice(0, 2)
     const tags = ['codigo-arancelario', `capitulo-${capNum}`]
-    if (cod.aec === 0) tags.push('tasa-cero')
+    if (cod.aec?.rate === 0) tags.push('tasa-cero')
+    if (cod.aec?.qualifier) tags.push(cod.aec.qualifier.toLowerCase())
     if (cod.ex_aec) tags.push('excepcion')
     const historyEntry = docId ? [{ document: docId, date: docDate || '', type: 'creación' as const }] : []
 
@@ -122,6 +124,7 @@ export function extractCodigoNodes(
         sa_chapter: capNum,
         aec: cod.aec,
         ex_aec: cod.ex_aec,
+        ex_aec_legal_refs: cod.ex_aec_legal_refs.length > 0 ? cod.ex_aec_legal_refs : undefined,
         physical_unit: cod.physical_unit,
         import_regime: cod.import_regime,
         export_regime: cod.export_regime,
@@ -129,7 +132,7 @@ export function extractCodigoNodes(
         history: historyEntry,
       },
       `### ${cod.code}\n\n**Descripción:** ${cod.description}\n\n` +
-        `**AEC:** ${cod.aec !== null ? cod.aec + '%' : '—'}\n` +
+        `**AEC:** ${cod.aec?.rate != null ? cod.aec.rate + '%' : '—'}${cod.aec?.qualifier ? ` (${cod.aec.qualifier})` : ''}\n` +
         `**Ex.AEC:** ${cod.ex_aec || '—'}\n` +
         `**Unidad Física:** ${cod.physical_unit || '—'}\n` +
         `**Régimen Importación:** ${cod.import_regime.join(', ') || 'Ninguno'}\n` +
@@ -203,6 +206,79 @@ export function extractRegimenNodes(
   })
 }
 
+export function extractSubcapituloNodes(
+  subcapitulos: RawSubcapitulo[],
+): Nodo[] {
+  return subcapitulos.map((subcap) => {
+    const id = subcapituloId(subcap.chapter, subcap.roman)
+    const tags = ['subcapitulo', `capitulo-${subcap.chapter}`]
+    let content = `## ${subcap.title}`
+    if (subcap.notes.length > 0) {
+      content += `\n\n### Notas\n\n${subcap.notes.map((n) => n.text).join('\n\n')}`
+    }
+    return buildNodo(
+      id,
+      'subcapitulo',
+      {
+        chapter: subcap.chapter,
+        roman: subcap.roman,
+        title: subcap.title,
+        notes: subcap.notes.length > 0 ? subcap.notes : undefined,
+      },
+      content,
+      tags,
+    )
+  })
+}
+
+export function extractNotaLegalNodes(
+  capitulos: RawCapituloSA[],
+  sectionNotas: RawNota[],
+): Nodo[] {
+  const nodos: Nodo[] = []
+  let idx = 0
+
+  for (const cap of capitulos) {
+    for (const note of cap.notes) {
+      const id = notaId(cap.number, note.type, idx)
+      const tags = ['nota-legal', `tipo-${note.type}`, `capitulo-${cap.number}`]
+      nodos.push(buildNodo(
+        id,
+        'nota-legal',
+        {
+          nota_type: note.type,
+          section: note.section,
+          chapter: cap.number,
+          scope: note.scope,
+        },
+        `### Nota ${note.type} (Capítulo ${cap.number})\n\n${note.text}`,
+        tags,
+      ))
+      idx++
+    }
+  }
+
+  for (const note of sectionNotas) {
+    const id = notaId(null, note.type, idx)
+    const tags = ['nota-legal', `tipo-${note.type}`, ...(note.section ? [`seccion-${note.section}`] : [])]
+    nodos.push(buildNodo(
+      id,
+      'nota-legal',
+      {
+        nota_type: note.type,
+        section: note.section,
+        chapter: null,
+        scope: null,
+      },
+      `### Nota ${note.type}\n\n${note.text}`,
+      tags,
+    ))
+    idx++
+  }
+
+  return nodos
+}
+
 function extractFromFile(file: ParsedFile): Nodo[] {
   const docId = file.document?.id || null
   const docDate = file.document?.date || null
@@ -213,6 +289,8 @@ function extractFromFile(file: ParsedFile): Nodo[] {
     ...extractSubpartidaNodes(file.subpartidas, docId, docDate),
     ...extractCodigoNodes(file.codes, docId, docDate),
     ...extractRegimenNodes(file.regimes, docId, docDate),
+    ...extractNotaLegalNodes(file.sa_chapters, file.notas),
+    ...extractSubcapituloNodes(file.subcapitulos),
   ]
 }
 

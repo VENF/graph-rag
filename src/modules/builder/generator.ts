@@ -16,6 +16,10 @@ const RELATION_LABELS: Record<string, string> = {
   requiere: "Requiere",
   refiere_a: "Referencia a",
   contiene: "Contiene",
+  aclara: "Aclara",
+  modifica_criterio: "Modifica Criterio",
+  sujeto_a: "Sujeto a",
+  subdivide: "Subdivide",
 };
 
 function serializeFrontmatter(metadata: Record<string, unknown>): string {
@@ -86,6 +90,8 @@ const CONFIG_KEY_TO_TIPO: Record<string, string> = {
   codigo: "codigo-arancelario",
   regimen: "regimen-legal",
   subpartida: "subpartida",
+  "nota-legal": "nota-legal",
+  subcapitulo: "subcapitulo",
 }
 
 const TIPO_TO_CONFIG_KEY = Object.fromEntries(
@@ -99,6 +105,8 @@ const PREFIX_TO_CONFIG_KEY: Record<string, string> = {
   cod: "codigo",
   reg: "regimen",
   sub: "subpartida",
+  nota: "nota-legal",
+  subcap: "subcapitulo",
 };
 
 function resolveDestPath(
@@ -147,7 +155,9 @@ function generateIndexFile(
   content += `| Artículos | ${counts["articulo"] || 0} |\n`;
   content += `| Códigos arancelarios | ${counts["codigo-arancelario"] || 0} |\n`;
   content += `| Subpartidas | ${counts["subpartida"] || 0} |\n`;
-  content += `| Regímenes legales | ${counts["regimen-legal"] || 0} |\n\n`;
+  content += `| Regímenes legales | ${counts["regimen-legal"] || 0} |\n`;
+  content += `| Notas legales | ${counts["nota-legal"] || 0} |\n`;
+  content += `| Subcapítulos | ${counts["subcapitulo"] || 0} |\n\n`;
 
   content += "## Índice de Nodos\n\n";
 
@@ -201,6 +211,14 @@ function generateIndexFile(
     "| `refiere_a` | Artículo referencia otro artículo | art-003 → art-008 |\n";
   content +=
     "| `contiene` | Documento contiene elemento | doc-gaceta-6804 → art-001 |\n";
+  content +=
+    "| `aclara` | Nota legal aclara capítulo | nota-01-capitulo-0 → cap-01 |\n";
+  content +=
+    "| `modifica_criterio` | Nota de subpartida modifica criterio de código | nota-04-subpartida-0 → sub-0404 |\n";
+  content +=
+    "| `sujeto_a` | Código sujeto a excepción legal de artículo | cod-0101210010 → art-011 |\n";
+  content +=
+    "| `subdivide` | Subcapítulo subdivide capítulo SA | subcap-98-i → cap-98 |\n";
 
   const indexPath = path.join(outputDir, "_index.md");
   fs.writeFileSync(indexPath, content, "utf-8");
