@@ -10,8 +10,7 @@
     "rootDir": ".",
     "declaration": true,
     "resolveJsonModule": true,
-    "types": ["node"],
-
+    "types": ["node"]
   },
   "include": ["src/modules/**/*", "config/**/*"],
   "exclude": ["node_modules", "dist"]

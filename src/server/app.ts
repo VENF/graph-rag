@@ -1,10 +1,8 @@
-import Fastify from 'fastify'
-import cors from '@fastify/cors'
-import { env } from '../../config/env.js'
-import { registerSearchRoutes } from './routes/search.js'
-import { registerGraphRoutes } from './routes/graph.js'
-import { registerHealthRoutes } from './routes/health.js'
-import { initSearchService } from './services/search-service.js'
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import { env } from '../../config/env.js';
+import { registerGraphRoutes } from './routes/graph.js';
+import { registerHealthRoutes } from './routes/health.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -15,18 +13,15 @@ export async function buildApp() {
         options: { colorize: true },
       },
     },
-  })
+  });
 
   await app.register(cors, {
     origin: env.CORS_ORIGIN,
     methods: ['GET', 'POST'],
-  })
+  });
 
-  initSearchService()
+  registerGraphRoutes(app);
+  registerHealthRoutes(app);
 
-  registerSearchRoutes(app)
-  registerGraphRoutes(app)
-  registerHealthRoutes(app)
-
-  return app
+  return app;
 }

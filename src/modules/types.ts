@@ -6,7 +6,7 @@ export type NodeType =
   | 'regimen-legal'
   | 'subpartida'
   | 'nota-legal'
-  | 'subcapitulo'
+  | 'subcapitulo';
 
 export type RelacionType =
   | 'es_parte_de'
@@ -18,29 +18,29 @@ export type RelacionType =
   | 'aclara'
   | 'modifica_criterio'
   | 'sujeto_a'
-  | 'subdivide'
+  | 'subdivide';
 
 export interface Frontmatter {
-  id: string
-  type: NodeType
-  [key: string]: unknown
+  id: string;
+  type: NodeType;
+  [key: string]: unknown;
 }
 
 export interface Nodo {
-  id: string
-  type: NodeType
-  metadata: Record<string, unknown>
-  content: string
-  tags: string[]
+  id: string;
+  type: NodeType;
+  metadata: Record<string, unknown>;
+  content: string;
+  tags: string[];
 }
 
 export interface Relacion {
-  type: RelacionType
-  origin: string
-  target: string
+  type: RelacionType;
+  origin: string;
+  target: string;
 }
 
 export interface Grafo {
-  nodos: Map<string, Nodo>
-  relaciones: Relacion[]
+  nodos: Map<string, Nodo>;
+  relaciones: Relacion[];
 }

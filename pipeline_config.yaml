@@ -2,62 +2,66 @@
 # ==================================================================
 input:
   patterns:
-    - "*.pdf.md"                           # Archivos fuente a procesar
-  dir: "./knowledge-base"                 # Directorio donde buscar
+    - '*.pdf.md' # Archivos fuente a procesar
+  dir: './knowledge-base' # Directorio donde buscar
 
 output:
-  dir: "./knowledge-graph"                # Directorio donde se genera el grafo
+  type: neo4j
+  uri: bolt://localhost:7687
+  user: ${NEO4J_USER}
+  password: ${NEO4J_PASSWORD}
+  mode: create
 
 node_types:
   documento:
-    dir: "00-documento"
-    label: "Documentos Fuente"
-    description: "Documentos fuente (Gaceta, Decreto, Ley)"
-    tags: "venezuela, gaceta-oficial, arancel-aduanas"
+    dir: '00-documento'
+    label: 'Documentos Fuente'
+    description: 'Documentos fuente (Gaceta, Decreto, Ley)'
+    tags: 'venezuela, gaceta-oficial, arancel-aduanas'
   capitulo:
-    dir: "01-capitulos"
-    label: "Capítulos SA"
-    description: "Capítulo del Sistema Armonizado (SA)"
-    tags: "capitulo-sa, seccion-X"
+    dir: '01-capitulos'
+    label: 'Capítulos SA'
+    description: 'Capítulo del Sistema Armonizado (SA)'
+    tags: 'capitulo-sa, seccion-X'
   articulo:
-    dir: "02-articulos"
-    label: "Artículos"
-    description: "Artículo legal del decreto/ley"
-    tags: "articulo, capitulo-legal-X"
+    dir: '02-articulos'
+    label: 'Artículos'
+    description: 'Artículo legal del decreto/ley'
+    tags: 'articulo, capitulo-legal-X'
   codigo:
-    dir: "03-codigos"
-    label: "Códigos Arancelarios"
-    description: "Código SA de 10 dígitos (partida nacional)"
-    tags: "codigo-arancelario, capitulo-NN, tasa-cero"
+    dir: '03-codigos'
+    label: 'Códigos Arancelarios'
+    description: 'Código SA de 10 dígitos (partida nacional)'
+    tags: 'codigo-arancelario, capitulo-NN, tasa-cero'
   regimen:
-    dir: "04-regimenes"
-    label: "Regímenes Legales"
-    description: "Régimen legal (permiso, licencia, restricción)"
-    tags: "regimen-legal"
+    dir: '04-regimenes'
+    label: 'Regímenes Legales'
+    description: 'Régimen legal (permiso, licencia, restricción)'
+    tags: 'regimen-legal'
   subpartida:
-    dir: "05-subpartidas"
-    label: "Subpartidas SA"
-    description: "Partida y subpartida SA de 4/6/8 dígitos"
-    tags: "subpartida, partida-sa"
+    dir: '05-subpartidas'
+    label: 'Subpartidas SA'
+    description: 'Partida y subpartida SA de 4/6/8 dígitos'
+    tags: 'subpartida, partida-sa'
   nota-legal:
-    dir: "06-notas-legales"
-    label: "Notas Legales"
-    description: "Notas legales de sección, capítulo, subcapítulo, subpartida y complementarias"
-    tags: "nota-legal, tipo-X"
+    dir: '06-notas-legales'
+    label: 'Notas Legales'
+    description: 'Notas legales de sección, capítulo, subcapítulo, subpartida y complementarias'
+    tags: 'nota-legal, tipo-X'
   subcapitulo:
-    dir: "07-subcapitulos"
-    label: "Subcapítulos"
-    description: "Subcapítulos del SA (Ej. Subcapítulo I, II, III del Capítulo 98)"
-    tags: "subcapitulo, division"
+    dir: '07-subcapitulos'
+    label: 'Subcapítulos'
+    description: 'Subcapítulos del SA (Ej. Subcapítulo I, II, III del Capítulo 98)'
+    tags: 'subcapitulo, division'
 
 relationships:
-  - "es_parte_de"                          # Jerarquía documental (hijo → padre)
-  - "pertenece_a"                          # Pertenencia a capítulo/sección (código → capítulo)
-  - "regula"                               # Artículo regula código (artículo → código)
-  - "requiere"                             # Código requiere régimen (código → régimen)
-  - "refiere_a"                            # Referencia cruzada entre artículos
-  - "contiene"                             # Documento contiene sección/capítulo/artículo
-  - "aclara"                               # Nota legal aclara capítulo
-  - "modifica_criterio"                    # Nota de subpartida modifica criterio de códigos
-  - "sujeto_a"                             # Código sujeto a excepción legal de artículo
-  - "subdivide"                            # Subcapítulo subdivide capítulo SA
+  - 'es_parte_de' # Jerarquía documental (hijo → padre)
+  - 'pertenece_a' # Pertenencia a capítulo/sección (código → capítulo)
+  - 'regula' # Artículo regula código (artículo → código)
+  - 'requiere' # Código requiere régimen (código → régimen)
+  - 'refiere_a' # Referencia cruzada entre artículos
+  - 'contiene' # Documento contiene sección/capítulo/artículo
+  - 'aclara' # Nota legal aclara capítulo
+  - 'modifica_criterio' # Nota de subpartida modifica criterio de códigos
+  - 'sujeto_a' # Código sujeto a excepción legal de artículo
+  - 'subdivide' # Subcapítulo subdivide capítulo SA
