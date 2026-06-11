@@ -6,6 +6,7 @@ import { NODE_TYPE_TO_LABEL } from './nodes.js';
 const BATCH_SIZE = 5000;
 
 const REL_TYPE_ALLOWLIST = new Set([
+  'ACLARA',
   'REFIERE_A',
   'MODIFICA_CRITERIO',
   'TIENE_REGIMEN',

@@ -29,6 +29,7 @@ export function extractNotaLegalNodes(capitulos: RawCapituloSA[], sectionNotas: 
   }
 
   for (const note of sectionNotas) {
+    if (note.chapter !== null) continue;
     const id = notaId(null, note.type, idx);
     const tags = ['nota-legal', `tipo-${note.type}`, ...(note.section ? [`seccion-${note.section}`] : [])];
     nodos.push(

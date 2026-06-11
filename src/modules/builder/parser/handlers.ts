@@ -135,13 +135,15 @@ export function handleNoteBlock(ctx: ParserCtx, subtokens: Token[], index: numbe
   const scope = type === 'subpartida' ? extractScopeCodes(token.body).join(',') || null : null;
   const ch = type === 'capitulo' || type === 'subpartida' || type === 'complementaria' ? chapter : null;
 
-  ctx.result.notas.push({
-    type,
-    section,
-    chapter: ch,
-    text: token.body,
-    scope,
-  });
+  const nota: RawNota = { type, section, chapter: ch, text: token.body, scope };
+  ctx.result.notas.push(nota);
+
+  if (ch) {
+    const targetCap = ctx.result.sa_chapters.find((c) => c.number === ch);
+    if (targetCap) {
+      targetCap.notes.push(nota);
+    }
+  }
 }
 
 export function handleSubcapituloHeader(ctx: ParserCtx, subtokens: Token[], index: number): void {
