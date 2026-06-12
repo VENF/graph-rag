@@ -1,6 +1,6 @@
 # Arancel de Aduanas
 
-Para entender el Arancel de Aduanas desde una perspectiva estrictamente jurídica, debemos abstraerlo de la Gaceta Oficial, de los números de decreto temporales y de la base de datos. Debes visualizarlo como una infraestructura legal viva que el Estado utiliza para regular, proteger y recaudar en su territorio.
+Para entender el Arancel de Aduanas desde una perspectiva estrictamente jurídica, se debe abstraer de la Gaceta Oficial, de los números de decreto temporales y de la base de datos y visualizarlo como una infraestructura legal viva que el Estado utiliza para regular, proteger y recaudar en su territorio.
 
 A nivel de lógica jurídica, esta entidad se compone de tres dimensiones:
 
