@@ -11,6 +11,8 @@ import { buildSubpartidaRelations } from './subpartidas.js';
 import { buildNotaLegalRelations, buildNotaScopeRelations } from './notes.js';
 import { buildExAecRelations } from './ex-aec.js';
 import { buildSubcapituloRelations } from './subchapters.js';
+import { buildReformaInterDocumentRelations } from './reforma.js';
+import { buildExoneracionInterDocumentRelations } from './exoneracion.js';
 
 export function buildCapituloMap(nodos: Map<string, Nodo>): Map<string, Nodo> {
   const map = new Map<string, Nodo>();
@@ -39,7 +41,13 @@ export function buildRelations(nodos: Map<string, Nodo>, files: ParsedFile[]): R
       ...buildExAecRelations(file, nodos),
       ...buildSubcapituloRelations(file, nodos),
     );
-    relaciones.push(...buildArticle37Relations(nodos));
+    relaciones.push(...buildArticle37Relations(file.document?.id, nodos));
+
+    if (file.frontmatter?.type === 'REFORMA') {
+      relaciones.push(...buildReformaInterDocumentRelations(file, nodos));
+    } else if (file.frontmatter?.type === 'EXONERACION') {
+      relaciones.push(...buildExoneracionInterDocumentRelations(file, nodos));
+    }
   }
 
   return relaciones;

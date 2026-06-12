@@ -1,4 +1,5 @@
 import type { Token, ParsedFile, RawNota, LineIndex } from '../types.js';
+import type { Frontmatter } from './frontmatter.js';
 import { extractReferencias, extractCodigosFromTable, extractSectionNotes } from './extractors.js';
 import { cleanPageBreaks, extractScopeCodes } from './utils.js';
 
@@ -6,6 +7,7 @@ export interface ParserCtx {
   lines: string[];
   content: string;
   filename: string;
+  frontmatter?: Frontmatter;
   result: ParsedFile;
 }
 

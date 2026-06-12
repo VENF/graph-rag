@@ -3,6 +3,7 @@ import { articleId, codeId } from '../ids.js';
 
 export function buildExAecRelations(file: ParsedFile, nodos: Map<string, Nodo>): Relacion[] {
   const relaciones: Relacion[] = [];
+  const docId = file.document?.id;
 
   for (const cod of file.codes) {
     if (!cod.ex_aec_legal_refs || cod.ex_aec_legal_refs.length === 0) continue;
@@ -12,7 +13,7 @@ export function buildExAecRelations(file: ParsedFile, nodos: Map<string, Nodo>):
     for (const ref of cod.ex_aec_legal_refs) {
       const artMatch = ref.match(/Art[íi]culo\s+(\d+)/);
       if (artMatch) {
-        const artId = articleId(parseInt(artMatch[1], 10));
+        const artId = articleId(parseInt(artMatch[1], 10), docId);
         if (nodos.has(artId)) {
           relaciones.push({ type: 'sujeto_a', origin: codId, target: artId });
         }

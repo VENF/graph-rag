@@ -1,10 +1,30 @@
 import type { RawCodigo, RawSubpartida, RawRegimen, RawDocumento } from '../types.js';
+import type { Frontmatter } from './frontmatter.js';
 import { mesToNum, parseAec, parseExAec, extractSubpartidaLevels } from './utils.js';
 
 const ARTICULO_RE = /[Aa]rt[íi]culo/;
 const NUMERO_RE = /[Nº°]/;
 
-export function extractDocumento(content: string, _filename: string): RawDocumento | null {
+export function extractDocumento(content: string, _filename: string, frontmatter?: Frontmatter): RawDocumento | null {
+  if (frontmatter) {
+    const decretoMatch = content.match(/Decreto\s+N[º°]\s*([\d.]+)/);
+    const decretoFechaMatch = content.match(/Decreto\s+N[º°]\s*[\d.]+\s*\n\s*(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/);
+
+    return {
+      id: frontmatter.documentId,
+      title: `Gaceta Oficial ${frontmatter.gazette} - ${frontmatter.amendment}`,
+      number: frontmatter.gazette,
+      gazette_type: 'Ordinaria',
+      date: frontmatter.date,
+      decree: decretoMatch?.[1] || '',
+      decree_date: decretoFechaMatch
+        ? `${decretoFechaMatch[3]}-${mesToNum(decretoFechaMatch[2])}-${decretoFechaMatch[1].padStart(2, '0')}`
+        : '',
+      issuer: 'Presidencia de la República',
+      amendment: frontmatter.amendment,
+    };
+  }
+
   const numMatch = content.match(new RegExp(NUMERO_RE.source + '\\s*([\\d.]+)\\s*(Extraordinario)?'));
   const fechaMatch = content.match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/);
   const decretoMatch = content.match(/Decreto\s+N[º°]\s*([\d.]+)/);
@@ -23,6 +43,7 @@ export function extractDocumento(content: string, _filename: string): RawDocumen
       ? `${decretoFechaMatch[3]}-${mesToNum(decretoFechaMatch[2])}-${decretoFechaMatch[1].padStart(2, '0')}`
       : '',
     issuer: 'Presidencia de la República',
+    amendment: '',
   };
 }
 
@@ -112,22 +133,22 @@ export function extractCodigosFromTable(
     if (desc) {
       const boldMatch = codeRaw.match(/<b>(\d{2})\.(\d{2})<\/b>/);
       if (boldMatch) {
-        const subId = `sub-${boldMatch[1]}${boldMatch[2]}`;
+        const subId = `SUB-${boldMatch[1]}${boldMatch[2]}`;
         descOverrides.set(subId, desc);
       }
 
       const match8d = cleanCode.match(/^(\d{4})\.(\d{2})\.(\d{2})$/);
       if (match8d) {
         const code8d = match8d[1] + match8d[2] + match8d[3];
-        const subId6 = `sub-${match8d[1]}${match8d[2]}`;
-        const subId8 = `sub-${code8d}`;
+        const subId6 = `SUB-${match8d[1]}${match8d[2]}`;
+        const subId8 = `SUB-${code8d}`;
         if (!descOverrides.has(subId6)) descOverrides.set(subId6, desc);
         if (!descOverrides.has(subId8)) descOverrides.set(subId8, desc);
       }
 
       const match6d = cleanCode.match(/^(\d{4})\.(\d{2})$/);
       if (match6d) {
-        const subId = `sub-${match6d[1]}${match6d[2]}`;
+        const subId = `SUB-${match6d[1]}${match6d[2]}`;
         if (!descOverrides.has(subId)) descOverrides.set(subId, desc);
       }
     }

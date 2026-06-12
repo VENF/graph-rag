@@ -18,7 +18,13 @@ export type RelacionType =
   | 'aclara'
   | 'modifica_criterio'
   | 'sujeto_a'
-  | 'subdivide';
+  | 'subdivide'
+  | 'modifica'
+  | 'suspende_aplicacion_de'
+  | 'sustituye_a'
+  | 'exonerado_por'
+  | 'actualiza_tarifa'
+  | 'suspende_regimen';
 
 export interface Frontmatter {
   id: string;
@@ -38,6 +44,7 @@ export interface Relacion {
   type: RelacionType;
   origin: string;
   target: string;
+  props?: Record<string, unknown>;
 }
 
 export interface Grafo {

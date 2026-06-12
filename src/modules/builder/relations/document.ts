@@ -7,7 +7,7 @@ export function buildDocumentRelations(file: ParsedFile, nodos: Map<string, Nodo
   if (!docId) return relaciones;
 
   for (const art of file.articles) {
-    const artId = articleId(art.number);
+    const artId = articleId(art.number, docId);
     if (nodos.has(artId)) {
       relaciones.push({ type: 'contiene', origin: docId, target: artId });
       relaciones.push({ type: 'es_parte_de', origin: artId, target: docId });

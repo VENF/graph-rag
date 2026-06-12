@@ -1,7 +1,7 @@
 {
   "name": "agentic-rag",
-  "version": "1.0.0",
-  "description": "Pipeline para construir un grafo de conocimiento en Markdown desde documentos jurídicos (arancel de aduanas)",
+  "version": "0.5.0",
+  "description": "",
   "type": "module",
   "scripts": {
     "build": "tsc",

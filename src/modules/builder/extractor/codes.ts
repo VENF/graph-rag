@@ -15,7 +15,9 @@ export function extractCodigoNodes(codigos: RawCodigo[], docId: string | null, d
     if (cod.aec?.rate === 0) tags.push('tasa-cero');
     if (cod.aec?.qualifier) tags.push(cod.aec.qualifier.toLowerCase());
     if (cod.ex_aec) tags.push('excepcion');
-    const historyEntry = docId ? [{ document: docId, date: docDate || '', type: 'creación' as const }] : [];
+
+    const aecActual = cod.aec?.rate != null ? cod.aec.rate : null;
+    const historial = docId ? [{ desde: docDate || '', hasta: null, aec: aecActual, documento: docId }] : [];
 
     return buildNodo(
       id,
@@ -25,13 +27,14 @@ export function extractCodigoNodes(codigos: RawCodigo[], docId: string | null, d
         description: cod.description,
         sa_chapter: capNum,
         aec: cod.aec,
+        aec_actual: aecActual,
         ex_aec: cod.ex_aec,
         ex_aec_legal_refs: cod.ex_aec_legal_refs.length > 0 ? cod.ex_aec_legal_refs : undefined,
         physical_unit: cod.physical_unit,
         import_regime: cod.import_regime,
         export_regime: cod.export_regime,
         source_document: docId,
-        history: historyEntry,
+        historial,
       },
       `### ${cod.code}\n\n**Descripción:** ${cod.description}\n\n` +
         `**AEC:** ${cod.aec?.rate != null ? cod.aec.rate + '%' : '—'}${cod.aec?.qualifier ? ` (${cod.aec.qualifier})` : ''}\n` +

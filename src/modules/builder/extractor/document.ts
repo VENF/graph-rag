@@ -14,10 +14,11 @@ export function extractDocumentoNode(doc: RawDocumento): Nodo {
       decree: doc.decree,
       decree_date: doc.decree_date,
       issuer: doc.issuer,
+      amendment: doc.amendment,
       source_document: doc.id,
       history: [{ document: doc.id, date: doc.date, type: 'creación' }],
     },
-    `# ${doc.title}\n\n**Nº:** ${doc.number} ${doc.gazette_type}\n**Fecha:** ${doc.date}\n**Decreto Nº:** ${doc.decree}\n**Emisor:** ${doc.issuer}`,
+    `# ${doc.title}\n\n**Nº:** ${doc.number} ${doc.gazette_type}\n**Fecha:** ${doc.date}\n**Decreto Nº:** ${doc.decree}\n**Emisor:** ${doc.issuer}\n**Enmienda:** ${doc.amendment}`,
     ['venezuela', 'arancel-aduanas', 'gaceta-oficial', slugify(doc.gazette_type)],
   );
 }

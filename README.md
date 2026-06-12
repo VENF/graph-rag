@@ -1,4 +1,4 @@
-# Graph Rag - Agentic
+# Graph Rag
 
 Convierte documentos legales en un **grafo de conocimiento** navegable en Neo4j.
 Partiendo de documentos en Markdown extraídos de PDF, el pipeline extrae artículos,

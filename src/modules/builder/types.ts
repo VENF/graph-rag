@@ -100,6 +100,7 @@ export interface RawDocumento {
   decree: string;
   decree_date: string;
   issuer: string;
+  amendment: string;
 }
 
 export interface RawSubcapitulo {
@@ -117,9 +118,12 @@ export interface RawCapituloSA {
   notes: RawNota[];
 }
 
+import type { Frontmatter } from './parser/frontmatter.js';
+
 export interface ParsedFile {
   path: string;
   filename: string;
+  frontmatter?: Frontmatter;
   document: RawDocumento | null;
   articles: RawArticulo[];
   sa_chapters: RawCapituloSA[];

@@ -9,7 +9,7 @@ export function extractArticuloNodes(
   docDate: string | null = null,
 ): Nodo[] {
   return articulos.map((art) => {
-    const id = articleId(art.number);
+    const id = articleId(art.number, docId || undefined);
     const tags = ['articulo'];
     if (art.legal_chapter) {
       tags.push(`capitulo-${slugify(art.legal_chapter)}`);

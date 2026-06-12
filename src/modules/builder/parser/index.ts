@@ -3,6 +3,7 @@ import path from 'path';
 import type { Token, ParsedFile } from '../types.js';
 import { tokenize } from '../lexer.js';
 import { extractDocumento, extractRegimenes } from './extractors.js';
+import { parseFrontmatter, stripFrontmatter } from './frontmatter.js';
 import { cleanPageBreaks } from './utils.js';
 import { handleArticle, handleCodeTable, handleSectionsRegion, handleArticleNotesRegion } from './handlers.js';
 import type { ParserCtx } from './handlers.js';
@@ -26,8 +27,10 @@ export function readSourceFiles(inputDir: string, patterns: string[]): string[] 
 }
 
 export function parseTokens(ctx: ParserCtx, tokens: Token[]): ParsedFile {
-  ctx.result.document = extractDocumento(ctx.content, ctx.filename);
-  ctx.result.regimes = extractRegimenes(ctx.content);
+  const content = ctx.frontmatter ? stripFrontmatter(ctx.content) : ctx.content;
+
+  ctx.result.document = extractDocumento(content, ctx.filename, ctx.frontmatter);
+  ctx.result.regimes = extractRegimenes(content);
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
@@ -53,7 +56,9 @@ export function parseTokens(ctx: ParserCtx, tokens: Token[]): ParsedFile {
 
 export function parseFileSync(filePath: string, filename: string): ParsedFile {
   const raw = fs.readFileSync(filePath, 'utf-8');
-  const content = cleanPageBreaks(raw);
+  const frontmatter = parseFrontmatter(raw);
+  const cleaned = frontmatter ? stripFrontmatter(raw) : raw;
+  const content = cleanPageBreaks(cleaned);
   const lines = content.split('\n');
   const tokens = tokenize(lines);
 
@@ -61,9 +66,11 @@ export function parseFileSync(filePath: string, filename: string): ParsedFile {
     lines,
     content,
     filename,
+    frontmatter: frontmatter ?? undefined,
     result: {
       path: filePath,
       filename,
+      frontmatter: frontmatter ?? undefined,
       document: null,
       articles: [],
       sa_chapters: [],

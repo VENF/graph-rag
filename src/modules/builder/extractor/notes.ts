@@ -2,13 +2,13 @@ import type { Nodo, RawCapituloSA, RawNota } from '../types.js';
 import { notaId } from '../ids.js';
 import { buildNodo } from './index.js';
 
-export function extractNotaLegalNodes(capitulos: RawCapituloSA[], sectionNotas: RawNota[]): Nodo[] {
+export function extractNotaLegalNodes(capitulos: RawCapituloSA[], sectionNotas: RawNota[], docId?: string): Nodo[] {
   const nodos: Nodo[] = [];
   let idx = 0;
 
   for (const cap of capitulos) {
     for (const note of cap.notes) {
-      const id = notaId(cap.number, note.type, idx);
+      const id = notaId(cap.number, note.type, idx, docId);
       const tags = ['nota-legal', `tipo-${note.type}`, `capitulo-${cap.number}`];
       nodos.push(
         buildNodo(
@@ -30,7 +30,7 @@ export function extractNotaLegalNodes(capitulos: RawCapituloSA[], sectionNotas: 
 
   for (const note of sectionNotas) {
     if (note.chapter !== null) continue;
-    const id = notaId(null, note.type, idx);
+    const id = notaId(null, note.type, idx, docId);
     const tags = ['nota-legal', `tipo-${note.type}`, ...(note.section ? [`seccion-${note.section}`] : [])];
     nodos.push(
       buildNodo(

@@ -9,13 +9,14 @@ function art25to33HasProhibition(num: number): boolean {
 
 export function buildArticleCrossReferences(file: ParsedFile, nodos: Map<string, Nodo>): Relacion[] {
   const relaciones: Relacion[] = [];
+  const docId = file.document?.id;
 
   for (const art of file.articles) {
-    const artId = articleId(art.number);
+    const artId = articleId(art.number, docId);
     if (!nodos.has(artId)) continue;
 
     for (const refNum of art.references) {
-      const refId = articleId(refNum);
+      const refId = articleId(refNum, docId);
       if (nodos.has(refId)) {
         relaciones.push({ type: 'refiere_a', origin: artId, target: refId });
       }
@@ -27,10 +28,11 @@ export function buildArticleCrossReferences(file: ParsedFile, nodos: Map<string,
 
 export function buildArticle21Relations(file: ParsedFile, nodos: Map<string, Nodo>): Relacion[] {
   const relaciones: Relacion[] = [];
+  const docId = file.document?.id;
   const art21 = file.articles.find((a) => a.number === 21);
   if (!art21) return relaciones;
 
-  const art21Id = articleId(21);
+  const art21Id = articleId(21, docId);
   if (!nodos.has(art21Id)) return relaciones;
 
   for (let i = 1; i <= 21; i++) {
@@ -53,10 +55,11 @@ export function buildArticle21Relations(file: ParsedFile, nodos: Map<string, Nod
 
 export function buildArticles22to36Relations(file: ParsedFile, nodos: Map<string, Nodo>): Relacion[] {
   const relaciones: Relacion[] = [];
+  const docId = file.document?.id;
 
   for (const art of file.articles) {
     if (art.number < 22 || art.number > 36) continue;
-    const artId = articleId(art.number);
+    const artId = articleId(art.number, docId);
     if (!nodos.has(artId)) continue;
 
     const mentionedRegimes = [...art.content.matchAll(/\b(?:Régimen\s+Legal\s+)?codificado[s]?\s+(\d+)/gi)].map(
@@ -85,15 +88,15 @@ export function buildArticles22to36Relations(file: ParsedFile, nodos: Map<string
   return relaciones;
 }
 
-export function buildArticle37Relations(nodos: Map<string, Nodo>): Relacion[] {
+export function buildArticle37Relations(docId: string | undefined, nodos: Map<string, Nodo>): Relacion[] {
   const relaciones: Relacion[] = [];
-  const art37Id = articleId(37);
+  const art37Id = articleId(37, docId);
   if (!nodos.has(art37Id)) return relaciones;
 
-  relaciones.push({ type: 'refiere_a', origin: art37Id, target: articleId(3) });
-  relaciones.push({ type: 'refiere_a', origin: art37Id, target: articleId(8) });
-  relaciones.push({ type: 'refiere_a', origin: art37Id, target: articleId(11) });
-  relaciones.push({ type: 'refiere_a', origin: art37Id, target: articleId(21) });
+  relaciones.push({ type: 'refiere_a', origin: art37Id, target: articleId(3, docId) });
+  relaciones.push({ type: 'refiere_a', origin: art37Id, target: articleId(8, docId) });
+  relaciones.push({ type: 'refiere_a', origin: art37Id, target: articleId(11, docId) });
+  relaciones.push({ type: 'refiere_a', origin: art37Id, target: articleId(21, docId) });
 
   return relaciones;
 }

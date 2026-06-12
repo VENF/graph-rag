@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { loadConfig } from './config.js';
+import type { SourceEntry } from './config.js';
 import { readSourceFiles, parseFileSync } from './parser/index.js';
 import { extractAllNodes } from './extractor/index.js';
 import { buildRelations } from './relations/index.js';
@@ -12,6 +13,7 @@ interface CliOptions {
   config?: string;
   input?: string;
   output?: string;
+  type?: string;
 }
 
 function printHelp(): void {
@@ -21,10 +23,12 @@ Opciones:
   -c, --config <ruta>   Ruta a pipeline_config.yaml (defecto: ./pipeline_config.yaml)
   -i, --input <dir>     Sobrescribe directorio de entrada
   -o, --output <dir>    Sobrescribe directorio de salida (solo markdown)
+  -t, --type <TYPE>     Selecciona source por tipo (MATRIZ|REFORMA|EXONERACION)
   --help                Muestra esta ayuda
 
 Ejemplos:
   npx tsx src/modules/builder/index.ts
+  npx tsx src/modules/builder/index.ts -t REFORMA
   npx tsx src/modules/builder/index.ts --input ../knowledge-base
   npx tsx src/modules/builder/index.ts -c ./custom_config.yaml
 `);
@@ -46,10 +50,52 @@ function parseArgs(): CliOptions {
       opts.input = args[++i];
     } else if (arg === '-o' || arg === '--output') {
       opts.output = args[++i];
+    } else if (arg === '-t' || arg === '--type') {
+      opts.type = args[++i];
     }
   }
 
   return opts;
+}
+
+function resolveSource(config: ReturnType<typeof loadConfig>, type?: string): string {
+  if (config.input.sources && config.input.sources.length > 0) {
+    const matrizCount = config.input.sources.filter((s) => s.type === 'MATRIZ').length;
+    if (matrizCount > 1) {
+      logger.error('Solo se permite una source de tipo MATRIZ');
+      process.exit(1);
+    }
+
+    let selected: SourceEntry;
+    if (type) {
+      const match = config.input.sources.find((s) => s.type === type);
+      if (!match) {
+        const available = config.input.sources.map((s) => s.type).join(', ');
+        logger.error(`Tipo "${type}" no encontrado. Tipos disponibles: ${available}`);
+        process.exit(1);
+      }
+      selected = match;
+    } else {
+      selected = config.input.sources[0];
+    }
+
+    logger.info(`Source seleccionada: ${selected.type} (${selected.strategy}) en ${selected.dir}`);
+
+    if (selected.strategy === 'OVERWRITE_OR_INITIALIZE') {
+      config.output.mode = 'create';
+    } else {
+      config.output.mode = 'merge';
+    }
+
+    return selected.dir;
+  }
+
+  if (config.input.dir) {
+    return config.input.dir;
+  }
+
+  logger.error('No se configuró input.dir ni input.sources en pipeline_config.yaml');
+  process.exit(1);
 }
 
 async function main(): Promise<void> {
@@ -60,19 +106,22 @@ async function main(): Promise<void> {
   logger.info(`Cargando config desde: ${configPath}`);
   const config = loadConfig(configPath);
 
+  let inputDir: string;
   if (opts.input) {
-    config.input.dir = path.resolve(opts.input);
-    if (!fs.existsSync(config.input.dir)) {
-      logger.error(`Error: directorio de entrada no existe: ${config.input.dir}`);
+    inputDir = path.resolve(opts.input);
+    if (!fs.existsSync(inputDir)) {
+      logger.error(`Error: directorio de entrada no existe: ${inputDir}`);
       process.exit(1);
     }
+  } else {
+    inputDir = resolveSource(config, opts.type);
   }
 
-  const sourceFiles = readSourceFiles(config.input.dir, config.input.patterns);
+  const sourceFiles = readSourceFiles(inputDir, config.input.patterns);
 
   if (sourceFiles.length === 0) {
     logger.error('No se encontraron archivos fuente con patrones: ' + config.input.patterns.join(', '));
-    logger.error(`En el directorio: ${config.input.dir}`);
+    logger.error(`En el directorio: ${inputDir}`);
     process.exit(1);
   }
 

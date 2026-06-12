@@ -18,7 +18,14 @@ const NODE_TYPE_TO_LABEL: Record<string, string> = {
 function sanitizeValue(val: unknown): unknown {
   if (val === null || val === undefined) return null;
   if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') return val;
-  if (Array.isArray(val)) return val.map(sanitizeValue);
+  if (Array.isArray(val)) {
+    return val.map((el) => {
+      if (el !== null && typeof el === 'object' && !Array.isArray(el)) {
+        return JSON.stringify(el);
+      }
+      return sanitizeValue(el);
+    });
+  }
   if (typeof val === 'object') return JSON.stringify(val);
   return String(val);
 }

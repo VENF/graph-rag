@@ -1,4 +1,5 @@
 import type { RawCodigo, RawSubpartida, RawNota, LineIndex } from '../types.js';
+import { subpartidaId } from '../ids.js';
 
 const PAGE_BREAK = /\{\d+\}-{2,}/;
 
@@ -121,7 +122,7 @@ export function extractSubpartidaLevels(code: string): RawSubpartida[] {
   ];
 
   for (const p of parts) {
-    const id = `sub-${p.display.replace(/\./g, '')}`;
+    const id = subpartidaId(p.display);
     levels.push({
       id,
       code: p.display.replace(/\./g, ''),

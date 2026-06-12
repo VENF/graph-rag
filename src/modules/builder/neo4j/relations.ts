@@ -9,26 +9,19 @@ const REL_TYPE_ALLOWLIST = new Set([
   'ACLARA',
   'REFIERE_A',
   'MODIFICA_CRITERIO',
-  'TIENE_REGIMEN',
-  'TIENE_SUBPARTIDA',
-  'TIENE_NOTA',
   'PERTENECE_A',
-  'CONTENIDO_EN',
   'REGULA',
   'ES_PARTE_DE',
   'CONTIENE',
-  'CREACION',
-  'SUBPARTIDA',
-  'CODIGO_ARANCELARIO',
   'REQUIERE',
   'SUJETO_A',
-  'NOTA_LEGAL',
-  'CAPITULO',
-  'ARTICULO',
-  'REGIMEN_LEGAL',
-  'SUBCAPITULO',
   'SUBDIVIDE',
-  'DOCUMENTO',
+  'MODIFICA',
+  'SUSPENDE_APLICACION_DE',
+  'SUSTITUYE_A',
+  'EXONERADO_POR',
+  'ACTUALIZA_TARIFA',
+  'SUSPENDE_REGIMEN',
 ]);
 
 function normalizeRelType(type: string): string {
@@ -50,7 +43,7 @@ export async function createRelationshipsOptimized(
       fromLabel: string;
       relType: string;
       toLabel: string;
-      rows: Array<{ origin: string; target: string }>;
+      rows: Array<{ origin: string; target: string; props?: Record<string, unknown> }>;
     }
   >();
 
@@ -77,7 +70,7 @@ export async function createRelationshipsOptimized(
     if (!byGroup.has(groupKey)) {
       byGroup.set(groupKey, { fromLabel, relType, toLabel, rows: [] });
     }
-    byGroup.get(groupKey)!.rows.push({ origin: rel.origin, target: rel.target });
+    byGroup.get(groupKey)!.rows.push({ origin: rel.origin, target: rel.target, props: rel.props });
   }
 
   if (skipped > 0) {
@@ -96,7 +89,10 @@ export async function createRelationshipsOptimized(
             `UNWIND $rows AS row
              MATCH (a:${group.fromLabel} {id: row.origin})
              MATCH (b:${group.toLabel} {id: row.target})
-             MERGE (a)-[:${group.relType}]->(b)`,
+             MERGE (a)-[r:${group.relType}]->(b)
+             FOREACH (_ IN CASE WHEN row.props IS NOT NULL THEN [1] ELSE [] END |
+               SET r = row.props
+             )`,
             { rows: batch },
           ),
         );

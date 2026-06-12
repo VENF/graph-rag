@@ -19,10 +19,17 @@ const Neo4jOutputSchema = z.object({
   mode: z.enum(['create', 'merge']).optional().default('merge'),
 });
 
+const SourceEntrySchema = z.object({
+  dir: z.string(),
+  type: z.enum(['MATRIZ', 'REFORMA', 'EXONERACION']),
+  strategy: z.enum(['OVERWRITE_OR_INITIALIZE', 'DELTA_MERGE', 'TEMPORAL_SUSPENSION']),
+});
+
 export const PipelineConfigSchema = z.object({
   input: z.object({
     patterns: z.array(z.string()),
-    dir: z.string(),
+    dir: z.string().optional(),
+    sources: z.array(SourceEntrySchema).optional(),
   }),
   output: Neo4jOutputSchema,
   node_types: z.record(z.string(), NodeTypeSchema),
@@ -30,6 +37,7 @@ export const PipelineConfigSchema = z.object({
 });
 
 export type PipelineConfig = z.infer<typeof PipelineConfigSchema>;
+export type SourceEntry = z.infer<typeof SourceEntrySchema>;
 
 function loadEnvFile(): void {
   const envPath = path.resolve(process.cwd(), '.env');
@@ -69,7 +77,14 @@ export function loadConfig(configPath: string): PipelineConfig {
   const parsed = yaml.load(raw, { schema: yaml.FAILSAFE_SCHEMA });
   const config = PipelineConfigSchema.parse(parsed);
 
-  config.input.dir = path.resolve(path.dirname(absPath), config.input.dir);
+  if (config.input.dir) {
+    config.input.dir = path.resolve(path.dirname(absPath), config.input.dir);
+  }
+  if (config.input.sources) {
+    for (const src of config.input.sources) {
+      src.dir = path.resolve(path.dirname(absPath), src.dir);
+    }
+  }
 
   return config;
 }

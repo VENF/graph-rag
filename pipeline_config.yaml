@@ -2,8 +2,11 @@
 # ==================================================================
 input:
   patterns:
-    - '*.pdf.md' # Archivos fuente a procesar
-  dir: './knowledge-base' # Directorio donde buscar
+    - '*.md' # Archivos fuente a procesar
+  sources:
+    - dir: './knowledge-base'
+      type: MATRIZ
+      strategy: OVERWRITE_OR_INITIALIZE
 
 output:
   type: neo4j

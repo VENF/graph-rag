@@ -34,7 +34,7 @@ function extractFromFile(file: ParsedFile): Nodo[] {
     ...extractSubpartidaNodes(file.subpartidas, docId, docDate),
     ...extractCodigoNodes(file.codes, docId, docDate),
     ...extractRegimenNodes(file.regimes, docId, docDate),
-    ...extractNotaLegalNodes(file.sa_chapters, file.notas),
+    ...extractNotaLegalNodes(file.sa_chapters, file.notas, docId ?? undefined),
     ...extractSubcapituloNodes(file.subcapitulos),
   ];
 }
