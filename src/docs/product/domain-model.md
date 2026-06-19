@@ -4,9 +4,9 @@ Para entender el Arancel de Aduanas desde una perspectiva estrictamente jurídic
 
 A nivel de lógica jurídica, esta entidad se compone de tres dimensiones:
 
-1. **Estructura Estática:** Cómo se organiza
-2. **Identificación Identitaria:** Cómo se nombra conceptualmente
-3. **Mecanismo de Extensión:** Cómo muta en el tiempo
+1. **Estructura estática:** Cómo se organiza
+2. **Identificación identitaria:** Cómo se nombra conceptualmente
+3. **Mecanismo de extensión:** Cómo muta en el tiempo
 
 ---
 
@@ -14,11 +14,11 @@ A nivel de lógica jurídica, esta entidad se compone de tres dimensiones:
 
 El Arancel de Aduanas no es un texto plano; es una pirámide jerárquica de obligaciones. Estructuralmente, se divide siempre en tres grandes capas independientes:
 
-- **El Cuerpo Normativo:** Son las reglas de juego compuesto por Artículos. Establece las disposiciones generales, las definiciones de los regímenes aduaneros, las prohibiciones macro, las potestades del Ejecutivo y las reglas de interpretación. Es el marco constitucional del documento.
+- **El Cuerpo normativo:** Son las reglas de juego compuesto por Artículos. Establece las disposiciones generales, las definiciones de los regímenes aduaneros, las prohibiciones macro, las potestades del Ejecutivo y las reglas de interpretación. Es el marco constitucional del documento.
 
-- **La Estructura Sistemática:** La Clasificación de la OMA, es la división científica de la materia y se organiza en Secciones, Capítulos (dos dígitos), Partidas (cuatro dígitos) y Subpartidas. Esta estructura está custodiada por las Notas Legales, que jurídicamente tienen fuerza de ley y delimitan de forma exacta qué entra y qué queda excluido de cada categoría.
+- **La estructura sistemática:** La Clasificación de la OMA, es la división científica de la materia y se organiza en Secciones, Capítulos (dos dígitos), Partidas (cuatro dígitos) y Subpartidas. Esta estructura está custodiada por las notas Legales, que jurídicamente tienen fuerza de ley y delimitan de forma exacta qué entra y qué queda excluido de cada categoría.
 
-- **El Apéndice Operacional (Las Tarifas):** Es la tabla que cruza la estructura de la OMA con las decisiones soberanas del Estado. Aquí es donde a cada código de 10 dígitos (en nuestro caso, la Nomenclatura Común del Mercosur) se le asigna su **AEC** (Arancel Externo Común) y sus **Regímenes Legales** (los permisos requeridos de los ministerios).
+- **El Apéndice Operacional:** Es la tabla que cruza la estructura de la OMA con las decisiones soberanas del Estado. Aquí es donde a cada código de 10 dígitos (en nuestro caso, la Nomenclatura Común del Mercosur) se le asigna su **AEC** (Arancel Externo Común) y sus **Regímenes Legales** (los permisos requeridos de los ministerios).
 
 ---
 
@@ -26,15 +26,15 @@ El Arancel de Aduanas no es un texto plano; es una pirámide jerárquica de obli
 
 El documento raíz es estático, pero la realidad comercial es dinámica. Para que la entidad jurídica se adapte sin tener que redactar un Arancel desde cero cada mes, el derecho aduanero utiliza tres mecanismos satélites de extensión:
 
-- **La Enmienda Internacional:** Ocurre cada 5 años por mandato de la OMA. Es el único mecanismo que destruye y reemplaza el documento raíz. Cambia los códigos, crea nuevas tecnologías y elimina las obsoletas. Obliga a emitir un nuevo decreto matriz.
+- **La Enmienda internacional:** Ocurre cada 5 años por mandato de la OMA. Es el único mecanismo que destruye y reemplaza el documento raíz. Cambia los códigos, crea nuevas tecnologías y elimina las obsoletas. Obliga a emitir un nuevo decreto matriz.
 
-- **La Reforma Parcial:** El Estado modifica el Arancel por dentro mediante "parches". No cambia la estructura de los códigos, pero muta sus propiedades: sube una tarifa para proteger la industria nacional o añade un permiso de importación a un químico peligroso.
+- **La Reforma parcial:** El Estado modifica el Arancel por dentro mediante "parches". No cambia la estructura de los códigos, pero muta sus propiedades: sube una tarifa para proteger la industria nacional o añade un permiso de importación a un químico peligroso.
 
-- **El Decreto de Exoneración:** No modifica el Arancel, sino que suspende su fuerza ejecutiva para ciertos sujetos o mercancías de forma temporal. El arancel base sigue siendo, por ejemplo, 10%, pero el Decreto de Exoneración crea una "burbuja legal" que permite declarar a una tasa efectiva del 0% por un plazo determinado.
+- **El Decreto de exoneración:** No modifica el Arancel, sino que suspende su fuerza ejecutiva para ciertos sujetos o mercancías de forma temporal. El arancel base sigue siendo, por ejemplo, 10%, pero el Decreto de Exoneración crea una "burbuja legal" que permite declarar a una tasa efectiva del 0% por un plazo determinado.
 
 ---
 
-### Diccionario de Nomenclatura
+### Diccionario de nomenclatura
 
 Esta es la regla de oro para garantizar que los elementos del mundo físico (mercancías) se mantengan globales, mientras que los elementos normativos (leyes) queden blindados dentro de su documento de origen.
 

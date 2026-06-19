@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import { env } from '../../config/env.js';
 import { registerGraphRoutes } from './routes/graph.js';
 import { registerHealthRoutes } from './routes/health.js';
+import { registerSearchRoutes } from './routes/search.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -22,6 +23,7 @@ export async function buildApp() {
 
   registerGraphRoutes(app);
   registerHealthRoutes(app);
+  registerSearchRoutes(app);
 
   return app;
 }
