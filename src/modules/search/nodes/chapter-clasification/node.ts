@@ -2,6 +2,8 @@ import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { model } from '../../services/llm.js';
 import { GraphStateType } from '../../graph/state.js';
 import { getSections, type Section } from '../../tools/getSections.js';
+import { ChapterOutputSchema } from '../../schemas/index.js';
+import { isMock, MOCK_CHAPTER } from '../../config/mock.js';
 
 const formatSections = (sections: Section[]): string =>
   sections
@@ -20,21 +22,22 @@ const sysPrompt = (sectionsText: string) => `
 `;
 
 export const chapterClasification = async (state: GraphStateType) => {
+  if (isMock()) return { chapter: MOCK_CHAPTER };
+
   const sheet = state.technicalSheet;
   const product = state.inputJson.producto;
   const sections = await getSections();
-  const response = await model.invoke([
+
+  const { chapter } = await model.withStructuredOutput(ChapterOutputSchema, { name: 'chapter' }).invoke([
     new SystemMessage(sysPrompt(formatSections(sections))),
     new HumanMessage(
       `Nombre técnico: "${sheet?.technical_name ?? product.descripcion_comercial}"
-       Materia constitutiva: "${sheet?.constituent_material ?? 'No especificada'}"
-       Función principal: "${sheet?.primary_function ?? product.uso_previsto}"
-       Presentación: "${sheet?.physical_presentation ?? 'No especificada'}"
-       ¿A qué capítulo del SA pertenece?`,
+         Materia constitutiva: "${sheet?.constituent_material ?? 'No especificada'}"
+         Función principal: "${sheet?.primary_function ?? product.uso_previsto}"
+         Presentación: "${sheet?.physical_presentation ?? 'No especificada'}"
+         ¿A qué capítulo del SA pertenece?`,
     ),
   ]);
-  const chapterNum = (response.content as string).trim();
-  return {
-    chapter: parseInt(chapterNum, 10) || 0,
-  };
+
+  return { chapter };
 };

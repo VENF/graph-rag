@@ -1,5 +1,6 @@
 import { Annotation } from '@langchain/langgraph';
 import { InputJsonSchema, TechnicalSheetSchema } from '../schemas/index.js';
+import type { ChapterNote } from '../tools/getChapterNotes.js';
 import type { z } from 'zod';
 
 export const GraphState = Annotation.Root({
@@ -11,6 +12,18 @@ export const GraphState = Annotation.Root({
   }),
   chapter: Annotation<number>({
     reducer: (_, next) => next,
+  }),
+  auditStatus: Annotation<'pending' | 'passed' | 'redirected'>({
+    reducer: (_, next) => next,
+    default: () => 'pending',
+  }),
+  auditNotes: Annotation<ChapterNote[]>({
+    reducer: (_, next) => next,
+    default: () => [],
+  }),
+  redirectCount: Annotation<number>({
+    reducer: (_, next) => next,
+    default: () => 0,
   }),
 });
 

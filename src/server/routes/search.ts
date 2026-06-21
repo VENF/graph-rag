@@ -31,10 +31,8 @@ export function registerSearchRoutes(server: FastifyInstance): void {
         inputJson: { producto },
       });
 
-      return {
-        chapter: finalState.chapter,
-        technicalSheet: finalState.technicalSheet,
-      };
+      const { inputJson: _, ...rest } = finalState;
+      return rest;
     } catch (err) {
       request.log.error({ err }, 'Search pipeline failed');
       return reply.status(500).send({ error: (err as Error).message });

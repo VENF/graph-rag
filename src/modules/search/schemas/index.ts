@@ -20,3 +20,16 @@ export const TechnicalSheetSchema = z.object({
 });
 
 export type TechnicalSheet = z.infer<typeof TechnicalSheetSchema>;
+
+export const ChapterOutputSchema = z.object({
+  chapter: z.number(),
+});
+
+export const AuditDecisionSchema = z.object({
+  excluded: z.boolean(),
+  redirectChapter: z.string().nullable(),
+  triggerNoteId: z.string().nullable(),
+  explanation: z.string(),
+});
+
+export type AuditDecision = z.infer<typeof AuditDecisionSchema>;
