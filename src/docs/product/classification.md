@@ -39,61 +39,54 @@ Antes de tocar una sola subpartida, el agente está obligado a validar las regla
 ---
 
 
-#### 4 Determinación de la fracción arancelaria mediante análisis de hipótesis concurrentes
+#### 4 Determinación de la fracción arancelaria 
 
-El objetivo de este paso es emular el rigor metodológico del aforo aduanero, evaluando en paralelo múltiples líneas de clasificación (hipótesis) basadas en las Reglas Generales de Interpretación (RGI), específicamente la RGI 1 (Texto de las partidas y de las Notas de Sección o Capítulo) y la RGI 3 (Mercancías susceptibles de clasificarse en dos o más partidas).
+El objetivo de este paso es navegar la jerarquía arancelaria desde el nivel de partida (4 dígitos) hasta el código nacional (10 dígitos), aplicando las Reglas Generales de Interpretación (RGI) de forma secuencial: RGI 1 para la selección de partida y RGI 6 para la clasificación en subpartidas.
 
-Este proceso se ejecuta de manera secuencial y restrictiva a través de tres sub-nodos cognitivos:
+El agente recorre el árbol de forma lineal y determinista, reduciendo el universo de búsqueda en cada nivel:
 
 ```
 [Capítulo Aprobado]
        │
        ▼
-[Sub-paso 4.1] ──► Apertura de 3 Partidas (4 dígitos) Concurrentes
+[Sub-paso 4.1] ──► Selección de Partida (4 dígitos)
        │
        ▼
-[Sub-paso 4.2] ──► Apertura de Subpartidas (6 dígitos) y Poda por RGI
+[Sub-paso 4.2] ──► Selección de Subpartida SA (6 dígitos)
        │
        ▼
-[Sub-paso 4.3] ──► Anclaje de la Fracción Arancelaria Nacional (10 dígitos)
+[Sub-paso 4.3] ──► Anclaje de Fracción Arancelaria Nacional (10 dígitos)
+       │
+       ▼
+[Grafo State actualizado con jerarquía completa]
 ```
 
-#### Sub-paso 4.1: Apertura de hipótesis y asignación de partidas (4 dígitos)
+#### Sub-paso 4.1: Selección de partida (4 dígitos)
 
-- **Entrada operativa:** El objeto **technicalSheet** unificado del Paso 1, 2 y  el vector de texto de las Notas Legales obtenido en el Paso 3.
+- **Entrada operativa:** El objeto **technicalSheet** unificado del Paso 1 y las Notas Legales obtenidas en el Paso 3.
 
-- **Consulta al Grafo:** El sistema realiza una extracción determinista de todas las Partidas (4 dígitos) indexadas bajo el capítulo aprobado (ej. Capítulo 85).
-
-- **El comportamiento del Agente:** El agente debe seleccionar obligatoriamente las tres partidas con mayor probabilidad de encaje legal, ordenadas por su grado de convicción y sustentadas bajo la RGI 1.
-
-- **Estructura del output:** Un arreglo de tres objetos de datos con estructura de prioridad:
-    - Partida (4 digitos)
-    - score de certeza
+- **Consulta al Grafo:** Extracción determinista de todas las Partidas (4 dígitos) indexadas bajo el capítulo aprobado.
 
 
-#### Sub-paso 4.2: análisis de subpartidas (6 dígitos) y poda de ramas por RGI
-
-- **Entrada operativa:** El arreglo de las 3 partidas concurrentes seleccionadas en el sub-paso anterior.
-
-- **Consulta al Grafo:** Ejecuta una consulta agrupada para extraer de forma masiva únicamente las Subpartidas del Sistema Armonizado (6 dígitos) que dependen directamente de las tres partidas finalistas.
-
-- **El comportamiento del Agente:** El agente recibe el árbol parcial y aplica las reglas de descarte e inclusión. Aquí se ejecuta la RGI 3(a) (la partida más específica tendrá prioridad sobre las partidas de alcance más general) y la RGI 6 (clasificación en subpartidas).
-   
-    - Mecanismo de poda: El agente redacta la justificación legal de descarte para las ramas débiles. Por ejemplo: "Se descarta la hipótesis de la partida 85.28 aplicando la Nota 7 del Capítulo 85, la cual otorga prioridad absoluta a la partida 85.24 y 85.17 sobre cualquier otra partida de la nomenclatura en función de su carácter esencial".
-
-- **Estructura del output:** El árbol se reduce en vivo. El agente retorna únicamente las dos subpartidas internacionales (6 dígitos) finalistas que resistieron el análisis de ponderación jurídica.
+- **El comportamiento del Agente:** El agente selecciona la partida con mayor probabilidad de encaje legal según la RGI 1 (texto de las partidas y notas de sección o capítulo). La partida seleccionada determina el universo del sub-paso siguiente.
 
 
-#### Sub-paso 4.3: Anclaje de la fracción arancelaria nacional (10 dígitos)
+#### Sub-paso 4.2: Selección de subpartida (6 dígitos)
 
-- **Entrada operativa:** Las dos subpartidas a nivel internacional (6 dígitos) que sobrevivieron al filtro aduanero.
+- **Entrada operativa:** La partida (4 dígitos) seleccionada en el sub-paso anterior + el technicalSheet + las Notas Legales.
 
-- **Consulta al Grafo:** Extracción final de los nodos hoja correspondientes a las Fracciones Arancelarias Nacionales (10 dígitos) específicas de la legislación de la aduana de destino (Arancel de la República Bolivariana de Venezuela).
+- **Consulta al Grafo:** Extracción de todas las Subpartidas SA (6 dígitos) que pertenecen a la partida seleccionada.
 
-- **El comportamiento del Agente:** El modelo evalúa los desgloses nacionales (apéndices de subpartidas regionales y nacionales) donde se discriminan criterios técnicos ultraespecíficos como frecuencias de bandas, potencias nominales o características de empaque industrial.
+- **El comportamiento del Agente:** Aplica la RGI 6 (clasificación en subpartidas) para elegir la subpartida correcta. Si hay notas de subpartida (MODIFICA_CRITERIO) que afecten el rango, el agente las evalúa para confirmar o redirigir la selección.
 
-- **Estructura del output:** El agente cierra el flujo heurístico declarando un veredicto definitivo unificado en el JSON
 
+#### Sub-paso 4.3: Anclaje de fracción arancelaria nacional (10 dígitos)
+
+- **Entrada operativa:** La subpartida SA (6 dígitos) seleccionada en el sub-paso anterior.
+
+- **Consulta al Grafo:** Extracción final de los nodos hoja correspondientes a las Fracciones Arancelarias Nacionales (10 dígitos) de la legislación de la aduana de destino (Arancel de la República Bolivariana de Venezuela).
+
+- **El comportamiento del Agente:** Evalúa los desgloses nacionales donde se discriminan criterios técnicos ultraespecíficos (frecuencias de bandas, potencias nominales, empaque industrial) para seleccionar el código de 10 dígitos definitivo. El código ganador incluye su tasa AEC, unidad física y regímenes aplicables.
 
 ---
 
