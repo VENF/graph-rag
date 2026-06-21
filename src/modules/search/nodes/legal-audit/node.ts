@@ -5,7 +5,7 @@ import { model } from '../../services/llm.js';
 import { GraphStateType } from '../../graph/state.js';
 import { getChapterNotes, type ChapterNote } from '../../tools/getChapterNotes.js';
 import { AuditDecisionSchema } from '../../schemas/index.js';
-import { isMock } from '../../config/mock.js';
+import { isMock, MOCK_AUDIT_NOTES } from '../../config/mock.js';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -22,7 +22,7 @@ export const legalAudit = async (state: GraphStateType) => {
     return { auditStatus: 'passed', auditNotes: [] };
   }
 
-  const notes: ChapterNote[] = await getChapterNotes(currentChapter);
+  const notes: ChapterNote[] = isMock() ? MOCK_AUDIT_NOTES : await getChapterNotes(currentChapter);
 
   if (isMock()) return { auditStatus: 'passed', auditNotes: notes };
 

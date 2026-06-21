@@ -23,6 +23,7 @@ export type TechnicalSheet = z.infer<typeof TechnicalSheetSchema>;
 
 export const ChapterOutputSchema = z.object({
   chapter: z.number(),
+  explanation: z.string(),
 });
 
 export const AuditDecisionSchema = z.object({
@@ -32,4 +33,45 @@ export const AuditDecisionSchema = z.object({
   explanation: z.string(),
 });
 
+export const HeadingSelectionSchema = z.object({
+  heading: z.string(),
+  explanation: z.string(),
+});
+
+export type HeadingSelection = z.infer<typeof HeadingSelectionSchema>;
+
+export const SubheadingSelectionSchema = z.object({
+  subheading: z.string(),
+  explanation: z.string(),
+});
+
+export type SubheadingSelection = z.infer<typeof SubheadingSelectionSchema>;
+
+export const CodeSelectionSchema = z.object({
+  code: z.string(),
+  explanation: z.string(),
+});
+
+export type CodeSelection = z.infer<typeof CodeSelectionSchema>;
+
 export type AuditDecision = z.infer<typeof AuditDecisionSchema>;
+
+export const MercologicalSummarySchema = z.object({
+  product: z.string(),
+  material: z.string(),
+  function: z.string(),
+  presentation: z.string(),
+});
+
+export const TraceabilityEntrySchema = z.object({
+  level: z.string(),
+  code: z.string(),
+  justification: z.string(),
+});
+
+export const VerdictReportSchema = z.object({
+  mercological_summary: MercologicalSummarySchema,
+  taxonomic_traceability: z.array(TraceabilityEntrySchema),
+  legal_basis: z.array(z.string()),
+  observations: z.string().min(1),
+});

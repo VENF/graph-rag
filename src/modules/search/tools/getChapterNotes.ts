@@ -13,7 +13,7 @@ export const getChapterNotes = async (chapter: number): Promise<ChapterNote[]> =
       `
       MATCH (c:CapituloSA {number: $chapter})
       OPTIONAL MATCH (n:NotaLegal)
-      WHERE (n.nota_type IN ['seccion', 'capitulo', 'complementaria', 'subpartida'])
+      WHERE (n.nota_type IN ['seccion', 'capitulo', 'complementaria', 'subpartida', 'subcapitulo'])
         AND (
           (n.nota_type = 'seccion' AND n.section = c.section)
           OR (n.nota_type IN ['capitulo', 'complementaria', 'subpartida'] AND n.chapter = $chapter)

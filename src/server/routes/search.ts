@@ -31,7 +31,7 @@ export function registerSearchRoutes(server: FastifyInstance): void {
         inputJson: { producto },
       });
 
-      const { inputJson: _, ...rest } = finalState;
+      const { inputJson: _, traceback, ...rest } = finalState;
       return rest;
     } catch (err) {
       request.log.error({ err }, 'Search pipeline failed');
