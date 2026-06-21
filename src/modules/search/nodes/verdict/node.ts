@@ -4,8 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { model } from '../../services/llm.js';
 import { GraphStateType } from '../../graph/state.js';
-import { VerdictReportSchema } from '../../schemas/index.js';
-import type { RegimeInfo } from '../../tools/getCodeRegimes.js';
+import { VerdictJustificationSchema } from '../../schemas/index.js';
 
 export type ClassificationLevel = {
   level: 'chapter' | 'heading' | 'subheading_sa' | 'subheading_national' | 'tariff_code';
@@ -15,27 +14,15 @@ export type ClassificationLevel = {
 };
 
 export type Verdict = {
-  ref: string;
-  date: string;
   code: string;
   description: string;
+  date: string;
   aec: number;
   physical_unit: string;
+  operation_type: string;
+  destination_country: string;
   classification_path: ClassificationLevel[];
-  legal_regimes: RegimeInfo[];
-  mercological_summary: {
-    product: string;
-    material: string;
-    function: string;
-    presentation: string;
-  };
-  taxonomic_traceability: Array<{
-    level: string;
-    code: string;
-    justification: string;
-  }>;
-  legal_basis: string[];
-  observations: string;
+  justification: string;
 };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -68,6 +55,8 @@ const getJustification = (level: string, state: GraphStateType): string => {
       return state.currentHeading?.explanation ?? '';
     case 'subpartida_sa':
       return state.currentSubheading?.explanation ?? '';
+    case 'subpartida_nacional':
+      return '';
     case 'codigo_arancelario':
       return state.currentCode?.explanation ?? '';
     default:
@@ -80,7 +69,6 @@ const formatDate = (): string => new Date().toISOString().split('T')[0];
 const buildContext = (state: GraphStateType): string => {
   const product = state.inputJson.producto;
   const sheet = state.technicalSheet;
-  const tb = state.traceback;
 
   const sections: string[] = [];
 
@@ -89,6 +77,9 @@ const buildContext = (state: GraphStateType): string => {
   sections.push(`Materia constitutiva: ${sheet?.constituent_material ?? 'No especificada'}`);
   sections.push(`Función principal: ${sheet?.primary_function ?? product.uso_previsto}`);
   sections.push(`Presentación: ${sheet?.physical_presentation ?? 'No especificada'}`);
+  if (sheet?.critical_specifications && Object.keys(sheet.critical_specifications).length > 0) {
+    sections.push(`Especificaciones críticas: ${JSON.stringify(sheet.critical_specifications)}`);
+  }
   sections.push('');
 
   sections.push('=== CLASIFICACIÓN ASIGNADA ===');
@@ -96,38 +87,60 @@ const buildContext = (state: GraphStateType): string => {
   sections.push(`Justificación del capítulo: ${state.chapterExplanation || '(no disponible)'}`);
   sections.push('');
 
-  sections.push('=== AUDITORÍA LEGAL ===');
-  sections.push(
-    `Estado: ${state.auditStatus === 'passed' ? 'APROBADO' : state.auditStatus === 'redirected' ? 'REDIRIGIDO' : state.auditStatus}`,
-  );
   const notes = state.auditNotes ?? [];
   if (notes.length > 0) {
-    sections.push('Notas del capítulo:');
+    sections.push('=== NOTAS LEGALES DEL CAPÍTULO ===');
     notes.forEach((n) => {
       const content =
         n.content && n.content.length > 10 && n.content !== '...' ? n.content : '(contenido no disponible)';
       sections.push(`  [${n.type.toUpperCase()} - ${n.id}]: ${content.substring(0, 300)}`);
     });
-  } else {
-    sections.push('Notas del capítulo: (ninguna)');
+    sections.push('');
   }
-  sections.push('');
 
   sections.push('=== PARTIDA SELECCIONADA ===');
   sections.push(`Código: ${state.currentHeading?.heading ?? ''}`);
-  sections.push(`Justificación RGI: ${state.currentHeading?.explanation ?? ''}`);
+  sections.push(`Justificación: ${state.currentHeading?.explanation ?? ''}`);
   sections.push('');
 
   sections.push('=== SUBPARTIDA SA SELECCIONADA ===');
   sections.push(`Código: ${state.currentSubheading?.subheading ?? ''}`);
-  sections.push(`Justificación RGI: ${state.currentSubheading?.explanation ?? ''}`);
+  sections.push(`Justificación: ${state.currentSubheading?.explanation ?? ''}`);
   sections.push('');
 
   sections.push('=== CÓDIGO NACIONAL SELECCIONADO ===');
   sections.push(`Código: ${state.currentCode?.code ?? ''}`);
-  sections.push(`Justificación RGI: ${state.currentCode?.explanation ?? ''}`);
+  sections.push(`Justificación: ${state.currentCode?.explanation ?? ''}`);
   sections.push('');
 
+  const headings = state.headings ?? [];
+  if (headings.length > 0) {
+    sections.push('=== PARTIDAS DISPONIBLES (ALTERNATIVAS) ===');
+    headings.forEach((h) => {
+      sections.push(`${h.code} | ${h.content?.substring(0, 100) ?? h.display}`);
+    });
+    sections.push('');
+  }
+
+  const subheadings = state.subheadings ?? [];
+  if (subheadings.length > 0) {
+    sections.push('=== SUBPARTIDAS DISPONIBLES (ALTERNATIVAS) ===');
+    subheadings.forEach((s) => {
+      sections.push(`${s.code} | ${s.content?.substring(0, 100) ?? s.display}`);
+    });
+    sections.push('');
+  }
+
+  const codes = state.nationalCodes ?? [];
+  if (codes.length > 0) {
+    sections.push('=== CÓDIGOS NACIONALES DISPONIBLES (ALTERNATIVAS) ===');
+    codes.forEach((c) => {
+      sections.push(`${c.code} | ${c.description?.substring(0, 100)} | AEC: ${c.aec_actual}%`);
+    });
+    sections.push('');
+  }
+
+  const tb = state.traceback;
   const hierarchy = tb?.hierarchy ?? [];
   if (hierarchy.length > 0) {
     sections.push('=== JERARQUÍA COMPLETA (ÁRBOL DE DECISIÓN) ===');
@@ -153,9 +166,6 @@ const buildContext = (state: GraphStateType): string => {
     regimes.forEach((r) => {
       sections.push(`${r.code} | ${r.description ?? '(sin descripción)'} | ${r.entity ?? '-'}`);
     });
-  } else {
-    sections.push('=== REGÍMENES LEGALES ===');
-    sections.push('(ninguno)');
   }
 
   return sections.join('\n');
@@ -175,29 +185,24 @@ export const verdict = async (state: GraphStateType) => {
     justification: getJustification(h.type, state),
   }));
 
-  const year = new Date().getFullYear();
-  const ref = `ADU-${year}-FT${state.chapter}-001`;
   const date = formatDate();
 
   const context = buildContext(state);
 
   const report = await model
-    .withStructuredOutput(VerdictReportSchema, { name: 'verdict_report' })
+    .withStructuredOutput(VerdictJustificationSchema, { name: 'verdict_justification' })
     .invoke([new SystemMessage(SYSTEM_PROMPT), new HumanMessage(context)]);
 
   const verdictResult: Verdict = {
-    ref,
-    date,
     code: code?.code ?? '',
     description: classification_path.find((h) => h.level === 'tariff_code')?.description ?? '',
+    date,
     aec: codeNode?.aec_actual ?? 0,
     physical_unit: codeNode?.physical_unit ?? '',
+    operation_type: state.operationType,
+    destination_country: state.destinationCountry,
     classification_path,
-    legal_regimes: regimes,
-    mercological_summary: report.mercological_summary,
-    taxonomic_traceability: report.taxonomic_traceability,
-    legal_basis: report.legal_basis,
-    observations: report.observations,
+    justification: report.justification,
   };
 
   return { verdict: verdictResult };

@@ -14,11 +14,13 @@ interface SearchBody {
   metadata_factura?: Record<string, unknown>;
   importador?: Record<string, unknown>;
   producto: ProductoInput;
+  tipo_operacion?: string;
+  pais_destino?: string;
 }
 
 export function registerSearchRoutes(server: FastifyInstance): void {
   server.post<{ Body: SearchBody }>('/api/v1/search', async (request, reply) => {
-    const { producto } = request.body;
+    const { producto, tipo_operacion, pais_destino } = request.body;
 
     if (!producto?.descripcion_comercial || !producto?.uso_previsto) {
       return reply.status(400).send({
@@ -29,10 +31,11 @@ export function registerSearchRoutes(server: FastifyInstance): void {
     try {
       const finalState = await app.invoke({
         inputJson: { producto },
+        operationType: tipo_operacion ?? 'Importación',
+        destinationCountry: pais_destino ?? 'Venezuela',
       });
 
-      const { inputJson: _, traceback, ...rest } = finalState;
-      return rest;
+      return finalState.verdict;
     } catch (err) {
       request.log.error({ err }, 'Search pipeline failed');
       return reply.status(500).send({ error: (err as Error).message });

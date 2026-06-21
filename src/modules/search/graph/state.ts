@@ -36,6 +36,14 @@ export const GraphState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => [],
   }),
+  operationType: Annotation<string>({
+    reducer: (_, next) => next,
+    default: () => 'Importación',
+  }),
+  destinationCountry: Annotation<string>({
+    reducer: (_, next) => next,
+    default: () => 'Venezuela',
+  }),
   redirectCount: Annotation<number>({
     reducer: (_, next) => next,
     default: () => 0,

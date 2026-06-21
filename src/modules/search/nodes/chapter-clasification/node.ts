@@ -21,7 +21,7 @@ const sysPrompt = (sectionsText: string) => `
   ${sectionsText}
   ${getRGIRules('chapter')}
 
-  Responde ÚNICAMENTE con el objeto JSON con los campos "chapter" (número de dos dígitos) y "explanation" (justificación basada en RGI).
+  Responde ÚNICAMENTE con el objeto JSON con los campos "chapter" (número de dos dígitos) y "explanation" (justificación basada en las Reglas Generales Interpretativas).
 `;
 
 export const chapterClasification = async (state: GraphStateType) => {
@@ -38,7 +38,7 @@ export const chapterClasification = async (state: GraphStateType) => {
          Materia constitutiva: "${sheet?.constituent_material ?? 'No especificada'}"
          Función principal: "${sheet?.primary_function ?? product.uso_previsto}"
          Presentación: "${sheet?.physical_presentation ?? 'No especificada'}"
-         ¿A qué capítulo del SA pertenece? Fundamenta tu respuesta aplicando las RGI.`,
+         ¿A qué capítulo del SA pertenece? Fundamenta tu respuesta aplicando las Reglas Generales Interpretativas.`,
     ),
   ]);
 

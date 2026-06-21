@@ -56,22 +56,6 @@ export type CodeSelection = z.infer<typeof CodeSelectionSchema>;
 
 export type AuditDecision = z.infer<typeof AuditDecisionSchema>;
 
-export const MercologicalSummarySchema = z.object({
-  product: z.string(),
-  material: z.string(),
-  function: z.string(),
-  presentation: z.string(),
-});
-
-export const TraceabilityEntrySchema = z.object({
-  level: z.string(),
-  code: z.string(),
-  justification: z.string(),
-});
-
-export const VerdictReportSchema = z.object({
-  mercological_summary: MercologicalSummarySchema,
-  taxonomic_traceability: z.array(TraceabilityEntrySchema),
-  legal_basis: z.array(z.string()),
-  observations: z.string().min(1),
+export const VerdictJustificationSchema = z.object({
+  justification: z.string().min(1),
 });
