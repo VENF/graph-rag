@@ -16,7 +16,7 @@ export const TechnicalSheetSchema = z.object({
   constituent_material: z.string(),
   primary_function: z.string(),
   physical_presentation: z.string(),
-  critical_specifications: z.record(z.string(), z.unknown()),
+  critical_specifications: z.object({}).catchall(z.unknown()),
 });
 
 export type TechnicalSheet = z.infer<typeof TechnicalSheetSchema>;
