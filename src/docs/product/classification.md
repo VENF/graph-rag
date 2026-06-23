@@ -14,97 +14,67 @@ El agente recibe los datos de la factura proforma o el input del usuario con una
 
 - **Resultado de este paso:** Ficha tecnica limpia que contiene únicamente el Sustantivo Base + Adjetivo Clasificatorio Mínimo.
 
+---
 
-#### 2  Determinación del universo de búsqueda
+#### 2 Búsqueda semántica y enriquecimiento contextual
 
-Con el término purificado, el agente debe mirar el mapa completo del arancel para no perder tiempo buscando en los 11,000 nodos terminales a la vez.
+Con la ficha técnica purificada, el agente ya no recorre el árbol arancelario nivel por nivel. En lugar de eso, transforma la descripción técnica en un vector semántico y lanza una búsqueda por similitud sobre la totalidad de la base de conocimiento.
 
-- **El comportamiento del agente:** Analiza semánticamente a qué Capítulo (**2 dígitos**) pertenece la mercancía.
+- **El comportamiento del agente:** Convierte la ficha técnica en un embedding semántico que captura la naturaleza del producto, su materia constitutiva, función principal y presentación. Este vector se compara contra los 11.000 códigos arancelarios indexados, recuperando los más cercanos por similitud coseno.
 
-- **Resultado de este paso:** El agente toma una decisión de enrutamiento y bloquea el resto de la base de datos. Si determina que es el Capítulo 85, el agente emite una orden interna: "A partir de este momento, queda prohibido mirar nodos que no empiecen por 85".
+- **Consulta al Grafo:** Por cada candidato recuperado, el agente extrae de forma masiva:
+  - La jerarquía completa (capítulo, partida, subpartidas, código nacional)
+  - Los regímenes legales y artículos aplicables
+  - Las notas legales del capítulo correspondiente
 
-#### 3 Auditoría de notas legales
+  Todo esto ocurre en una única operación sobre el grafo, sin recorridos iterativos ni llamadas encadenadas.
 
-Antes de tocar una sola subpartida, el agente está obligado a validar las reglas del juego de ese capítulo.
+- **Comportamiento adaptativo:** En un primer intento el agente recupera los 3 candidatos más cercanos. Si ninguno es aceptado en la fase de veredicto, el agente expande su búsqueda a 15 candidatos en un segundo intento.
 
-- **El comportamiento del agente:** Extrae del grafo todas las **Notas Legales** (de Sección y de Capítulo) asociadas al universo macro que seleccionó en el Paso 2.
+- **Resultado de este paso:** Un conjunto acotado de candidatos arancelarios, cada uno con su ruta jerárquica completa, notas legales del capítulo y régimen legal asociado. El agente tiene todo el contexto necesario para decidir sin tener que volver al grafo.
 
-- **Proceso de evaluación:** El agente lee estas notas y se pregunta: ¿Este producto está excluido explícitamente por alguna nota? ¿Cumple con las definiciones técnicas que exige el capítulo?
+---
+
+#### 3 Veredicto clasificatorio con redirección
+
+El agente tiene los candidatos y su contexto legal completo. Ahora debe aplicar las reglas del Sistema Armonizado para determinar cuál —si alguno— clasifica correctamente el producto.
+
+- **El comportamiento del agente:** Aplica las Reglas Generales Interpretativas (RGI 1-6) sobre los candidatos disponibles. Evalúa los textos de partida y subpartida, contrasta con las notas legales de sección, capítulo y subpartida, y verifica la coherencia técnica del producto con cada código.
 
 - **Flujo de Decisión:**
-    - **Si una nota lo excluye:** El agente detiene el flujo actual, redirige la mercancía hacia el capítulo que la nota le ordene y vuelve al Paso 2 **(Comportamiento iterativo de corrección).**
+  - **Si un candidato clasifica correctamente:** El agente selecciona el código, y emite un dictamen con la ruta de clasificación completa y una justificación técnica por cada nivel jerárquico (capítulo, partida, subpartida SA, subpartida nacional, código).
+  - **Si ningún candidato clasifica correctamente:** El agente redirige. El paso 2 se ejecuta nuevamente con un universo de búsqueda ampliado (15 candidatos en lugar de 3). En este segundo intento, el agente está obligado a seleccionar el mejor candidato disponible.
 
-    - **Si ninguna nota lo excluye:** El agente da luz verde para avanzar a la fase micro.
-
----
-
-
-#### 4 Determinación de la fracción arancelaria 
-
-El objetivo de este paso es navegar la jerarquía arancelaria desde el nivel de partida (4 dígitos) hasta el código nacional (10 dígitos), aplicando las Reglas Generales de Interpretación (RGI) de forma secuencial: RGI 1 para la selección de partida y RGI 6 para la clasificación en subpartidas.
-
-El agente recorre el árbol de forma lineal y determinista, reduciendo el universo de búsqueda en cada nivel:
-
-```
-[Capítulo Aprobado]
-       │
-       ▼
-[Sub-paso 4.1] ──► Selección de Partida (4 dígitos)
-       │
-       ▼
-[Sub-paso 4.2] ──► Selección de Subpartida SA (6 dígitos)
-       │
-       ▼
-[Sub-paso 4.3] ──► Anclaje de Fracción Arancelaria Nacional (10 dígitos)
-       │
-       ▼
-[Grafo State actualizado con jerarquía completa]
-```
-
-#### Sub-paso 4.1: Selección de partida (4 dígitos)
-
-- **Entrada operativa:** El objeto **technicalSheet** unificado del Paso 1 y las Notas Legales obtenidas en el Paso 3.
-
-- **Consulta al Grafo:** Extracción determinista de todas las Partidas (4 dígitos) indexadas bajo el capítulo aprobado.
-
-
-- **El comportamiento del Agente:** El agente selecciona la partida con mayor probabilidad de encaje legal según la RGI 1 (texto de las partidas y notas de sección o capítulo). La partida seleccionada determina el universo del sub-paso siguiente.
-
-
-#### Sub-paso 4.2: Selección de subpartida (6 dígitos)
-
-- **Entrada operativa:** La partida (4 dígitos) seleccionada en el sub-paso anterior + el technicalSheet + las Notas Legales.
-
-- **Consulta al Grafo:** Extracción de todas las Subpartidas SA (6 dígitos) que pertenecen a la partida seleccionada.
-
-- **El comportamiento del Agente:** Aplica la RGI 6 (clasificación en subpartidas) para elegir la subpartida correcta. Si hay notas de subpartida (MODIFICA_CRITERIO) que afecten el rango, el agente las evalúa para confirmar o redirigir la selección.
-
-
-#### Sub-paso 4.3: Anclaje de fracción arancelaria nacional (10 dígitos)
-
-- **Entrada operativa:** La subpartida SA (6 dígitos) seleccionada en el sub-paso anterior.
-
-- **Consulta al Grafo:** Extracción final de los nodos hoja correspondientes a las Fracciones Arancelarias Nacionales (10 dígitos) de la legislación de la aduana de destino (Arancel de la República Bolivariana de Venezuela).
-
-- **El comportamiento del Agente:** Evalúa los desgloses nacionales donde se discriminan criterios técnicos ultraespecíficos (frecuencias de bandas, potencias nominales, empaque industrial) para seleccionar el código de 10 dígitos definitivo. El código ganador incluye su tasa AEC, unidad física y regímenes aplicables.
+- **Resultado de este paso:** Dictamen pericial final con el código arancelario seleccionado, su tasa AEC, unidad física, ruta de clasificación jerárquica y justificación técnico-legal. Si la búsqueda semántica no encontró un candidato adecuado en el primer intento, la redirección garantiza que siempre haya una clasificación de respaldo.
 
 ---
 
-#### 5 Construcción del Expediente de Evidencias
+### Resumen del flujo
 
-Una vez que el agente tiene el código de 10 dígitos ganador, su comportamiento cambia de "buscador" a "auditor". No puede entregar el resultado sin pruebas.
+```
+[Input del usuario]
+       │
+       ▼
+┌─────────────────────────────┐
+│ 1. Admisión y purificación  │  ← LLM: ficha técnica estandarizada
+│    (distil)                 │
+└─────────────┬───────────────┘
+              │
+              ▼
+┌─────────────────────────────┐
+│ 2. Búsqueda semántica       │  ← Embedding + vector search
+│    (candidateSearch)        │     + enrichment (jerarquía,
+│                             │     regímenes, notas)
+└─────────────┬───────────────┘
+              │
+              ▼
+┌─────────────────────────────┐
+│ 3. Veredicto clasificatorio │  ← LLM: RGI 1-6, selección
+│    (verdict)                │     o redirección
+└─────────────┬───────────────┘
+              │
+              ▼
+       [Dictamen final]
+```
 
-- **El comportamiento del Agente:** Camina el grafo al revés **(Traceback)**. Partiendo del nodo de 10 dígitos, sube por las relaciones jerárquicas y recolecta:
-
-    - Los textos de los nodos intermedios (NCM, Subpartida SA, Partida) para armar la línea del árbol.
-
-    - Las Reglas generales de Interpretación (RGI) aplicables a esa estructura.
-
-    - Los requisitos de Régimen Legal (permisos) y Régimen Fiscal (tasas e impuestos base) amarrados a ese código de 10 dígitos.
-
-#### 6 Redacción del dictamen pericial
-
-El último estado del agente es la formalización jurídica. El agente consolida toda la información que extrajo del grafo en un documento con estructura de informe legal.
-
-- **El comportamiento del agente:** Toma los ladrillos de información (Textos de partidas, contenido exacto de las notas validadas, tasas, etc.) y los organiza bajo un formato estricto de dictamen: Identificación $\rightarrow$ Jerarquía $\rightarrow$ Fundamento de Reglas $\rightarrow$ Notas de Coherencia $\rightarrow$ Tarifa Fiscal y Cierre.
-
+El flujo completo ejecuta un máximo de 2-3 llamadas a LLM (una para la ficha técnica, una o dos para el veredicto) y 3 consultas al grafo (vector search, enrichment y notas), reemplazando el recorrido lineal y determinista del árbol arancelario por una búsqueda semántica guiada por similitud vectorial.

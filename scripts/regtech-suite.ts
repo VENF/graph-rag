@@ -266,7 +266,7 @@ async function main() {
       const sheet = finalState.technicalSheet as Record<string, unknown> | null;
       const technicalName = (sheet?.technical_name as string) ?? '';
       const constituentMaterial = (sheet?.constituent_material as string) ?? '';
-      const chapter = finalState.chapter;
+      const chapter = parseInt(finalState.candidates?.[0]?.sa_chapter ?? '0', 10);
 
       const materialOk =
         !/No especificado|Desconocido|null|undefined/i.test(constituentMaterial) &&

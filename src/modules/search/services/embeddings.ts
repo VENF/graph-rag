@@ -1,6 +1,7 @@
-import { OllamaEmbeddings } from '@langchain/ollama';
+import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
+import { env } from '../../../../config/env.js';
 
-export const embeddings = new OllamaEmbeddings({
-  model: 'bge-m3',
-  baseUrl: 'http://localhost:11434',
+export const embeddings = new GoogleGenerativeAIEmbeddings({
+  model: 'gemini-embedding-001',
+  apiKey: env.GOOGLE_GENERATIVE_AI_API_KEY,
 });
