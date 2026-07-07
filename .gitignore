@@ -5,3 +5,5 @@ knowledge-base/
 knowledge-graph/
 .opencode/
 openspec/
+jobs/*
+!jobs/.gitkeep

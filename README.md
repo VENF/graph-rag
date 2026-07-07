@@ -70,16 +70,3 @@ output:
 | `pnpm lint`         | Verifica el código con ESLint                                |
 | `pnpm format`       | Verifica el formato con Prettier                             |
 | `pnpm format:write` | Corrige el formato automáticamente                           |
-
-
-
-## Próximos pasos
-
-### Agente de búsqueda con IA
-
-Integrar un agente conversacional que permita consultar el grafo en lenguaje natural usando un LLM (Gemini, Claude, GPT). El agente dispondría de herramientas para ejecutar Cypher directamente sobre Neo4j:
-
-- `graph-query` — ejecuta consultas Cypher
-- `graph-schema` — devuelve tipos de nodo y relación disponibles
-- `graph-path` — encuentra caminos entre dos entidades
-

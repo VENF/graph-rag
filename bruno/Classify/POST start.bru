@@ -1,0 +1,20 @@
+meta {
+  name: POST start
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{BASE_URL}}/api/classify/start
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "producto": {
+      "descripcion_comercial": "Smartphone Pro Max 256GB - Teléfono móvil celular inteligente con conectividad 5G, pantalla OLED de 6.7 pulgadas y cámara triple",
+      "uso_previsto": "Distribución comercial y venta al detal en tiendas de tecnología a nivel nacional"
+    }
+  }
+}
